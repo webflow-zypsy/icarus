@@ -23,8 +23,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
 gsap.registerPlugin(ScrollTrigger)
 
 // ─── CHANGE THESE TWO LINES to your actual Cloudflare R2 public URLs ───────
-const SKY_URL   = "https://YOUR-R2-BUCKET.r2.dev/sky.png"
-const MODEL_URL = "https://YOUR-R2-BUCKET.r2.dev/apollo.glb"
+const SKY_URL   = "https://webflow-zypsy.github.io/icarus/sky.png"
+const MODEL_URL = "https://webflow-zypsy.github.io/icarus/apollo.glb"
 // ────────────────────────────────────────────────────────────────────────────
 
 // ---- perf instrumentation (console-friendly) ----
