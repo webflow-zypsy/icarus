@@ -69,11 +69,11 @@ const swayState = {
   baseCam: new THREE.Vector3(),
   baseTgt: new THREE.Vector3(),
   cfg: {
-    bobAmp:    0.04,
-    bobPeriod: 5.0,
+    bobAmp:      0.04,
+    bobPeriod:   5.0,
     stallPeriod: 3.0,
-    stallDepth: 0.35,
-    pitchAmp:  0.0075,
+    stallDepth:  0.35,
+    pitchAmp:    0.0075,
   },
 }
 
@@ -277,8 +277,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1
 
 // DOM Setup – Webflow ready
-// The canvas is injected into #apollo-canvas-wrap
-// OR falls back to appending to body if that div doesn't exist.
 let styleTag = document.getElementById("apollo-scroll-styles")
 if (!styleTag) {
   styleTag = document.createElement("style")
@@ -291,8 +289,6 @@ styleTag.textContent = `
   #apollo-scroll-root { position: relative; z-index: 1; pointer-events: none; }
 `
 
-// Mount canvas into the wrapper div (id="apollo-canvas-wrap")
-// If you haven't added that div yet, it auto-creates and appends to body.
 let canvasWrap = document.getElementById("apollo-canvas-wrap")
 if (!canvasWrap) {
   canvasWrap = document.createElement("div")
@@ -302,8 +298,6 @@ if (!canvasWrap) {
 canvasWrap.innerHTML = ""
 canvasWrap.appendChild(renderer.domElement)
 
-// scrollRoot is the Webflow section(s) with id="apollo-scroll-root" that drive the scroll animation.
-// If it doesn't exist the script still works — GSAP will fall back to the body.
 let scrollRoot = document.getElementById("apollo-scroll-root")
 if (!scrollRoot) {
   scrollRoot = document.createElement("div")
@@ -484,8 +478,8 @@ new GLTFLoader().load(
         const bb = new THREE.Box3().setFromObject(m)
         const sz = new THREE.Vector3(), ct = new THREE.Vector3()
         bb.getSize(sz); bb.getCenter(ct)
-        const flatness  = sz.y / Math.max(sz.x, sz.z, 1e-6)
-        const score = sz.x * sz.z * (1 / (flatness + 0.02)) * (0.6 + Math.abs(ct.x))
+        const flatness = sz.y / Math.max(sz.x, sz.z, 1e-6)
+        const score    = sz.x * sz.z * (1 / (flatness + 0.02)) * (0.6 + Math.abs(ct.x))
         return { m, score }
       }).sort((a, b) => b.score - a.score)
       for (let i = 0; i < Math.min(4, scored.length); i++) scored[i].m.material = droneMats.carbonGlossy
@@ -506,11 +500,15 @@ new GLTFLoader().load(
     }
 
     // GSAP scroll-scrubbed camera path
+    // p0 — close diagonal wing shot: camera low-left of fuselage, wing fills frame diagonally
+    // p1 — pull back, begin arc toward the nose
+    // p2 — dead ahead of nose at wing level, fuselage pod centred, wing horizontal across frame
+    // p3 — same front-on axis, pulled back further + slightly higher, full wingspan visible
     const poses = {
-      p0: { cam: { x: -1.152, y: 0.239,  z:  0.006 }, tgt: { x: 0, y: 0.3, z: 0 } },
-      p1: { cam: { x: -1.859, y: 1.463,  z: -2.077 }, tgt: { x: 0, y: 0.3, z: 0 } },
-      p2: { cam: { x:  3.14,  y: 2.079,  z: -2.309 }, tgt: { x: 0, y: 0.3, z: 0 } },
-      p3: { cam: { x:  1.859, y: 4.317,  z: -0.007 }, tgt: { x: 0, y: 0.3, z: 0 } },
+      p0: { cam: { x: -1.8, y:  0.55, z:  2.2 }, tgt: { x:  0.4, y: 0.10, z: 0 } },
+      p1: { cam: { x: -0.6, y:  0.70, z:  3.8 }, tgt: { x:  0.0, y: 0.15, z: 0 } },
+      p2: { cam: { x:  0.0, y:  0.20, z:  5.5 }, tgt: { x:  0.0, y: 0.18, z: 0 } },
+      p3: { cam: { x:  0.0, y:  0.60, z:  8.5 }, tgt: { x:  0.0, y: 0.18, z: 0 } },
     }
 
     const camCurveRaw = new THREE.CatmullRomCurve3(
@@ -552,50 +550,19 @@ new GLTFLoader().load(
       swayState.enabled = true
     }
 
-    // Apply p0 immediately — this IS the starting view, no auto-framing override
     applyPose(0)
 
-    // Camera movement timeline
     const tl = gsap.timeline({ defaults: { ease: "none" } })
     tl.to(travel, { t: 1, duration: 1, onUpdate: () => applyPose(travel.t) })
 
-    // CSS filter timeline — matches Framer's grayscale fade-to-dark on scroll:
-    // start: grayscale(0.6) contrast(1) brightness(1)
-    // end:   grayscale(0.8) contrast(0.9) brightness(0.05)
-    const filterState = { grayscale: 0.6, contrast: 1.0, brightness: 1.0 }
-    const filterTl = gsap.timeline({ defaults: { ease: "none" } })
-    filterTl.to(filterState, {
-      grayscale: 0.8,
-      contrast: 0.9,
-      brightness: 0.05,
-      duration: 1,
-      onUpdate: () => {
-        canvasWrap.style.filter = `grayscale(${filterState.grayscale.toFixed(2)}) contrast(${filterState.contrast.toFixed(2)}) brightness(${filterState.brightness.toFixed(2)})`
-      }
-    })
-
-    // Set initial filter immediately
-    canvasWrap.style.filter = `grayscale(0.6) contrast(1) brightness(1)`
-
     ScrollTrigger.getAll().forEach((t) => t.kill())
 
-    // Camera movement — full scroll range
     ScrollTrigger.create({
       trigger: scrollRoot,
       start: "top top",
       end:   "bottom bottom",
       scrub: 0.8,
       animation: tl,
-      invalidateOnRefresh: true,
-    })
-
-    // CSS filter fade — starts halfway through scroll
-    ScrollTrigger.create({
-      trigger: scrollRoot,
-      start: "40% top",
-      end:   "bottom bottom",
-      scrub: 1.2,
-      animation: filterTl,
       invalidateOnRefresh: true,
     })
 
@@ -628,10 +595,10 @@ function animate() {
 
   if (swayState.enabled && droneObject) {
     const s = swayState.cfg
-    const bobFreq  = (2 * Math.PI) / s.bobPeriod
-    const bob      = Math.sin(t * bobFreq)
-    const stall    = 1.0 - s.stallDepth * Math.cos(t * (2 * Math.PI) / s.stallPeriod) ** 2
-    const dy       = bob * s.bobAmp * stall
+    const bobFreq = (2 * Math.PI) / s.bobPeriod
+    const bob     = Math.sin(t * bobFreq)
+    const stall   = 1.0 - s.stallDepth * Math.cos(t * (2 * Math.PI) / s.stallPeriod) ** 2
+    const dy      = bob * s.bobAmp * stall
 
     droneObject.position.set(droneBasePos.x, droneBasePos.y + dy, droneBasePos.z)
     droneObject.rotation.set(
@@ -646,7 +613,7 @@ function animate() {
   camera.lookAt(controls.target)
   renderer.render(scene, camera)
 
-  if (!perf.flags.anyFrameMarked)   { perf.flags.anyFrameMarked = true;  perf.mark("first-frame-any") }
+  if (!perf.flags.anyFrameMarked) { perf.flags.anyFrameMarked = true; perf.mark("first-frame-any") }
   if (perf.flags.assetsReadyMarked && !perf.flags.firstFrameMarked) {
     perf.flags.firstFrameMarked = true; perf.mark("first-frame")
   }
