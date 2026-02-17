@@ -1,19 +1,4 @@
-// Apollo Three.js Scene — CDN-compatible (no bundler needed)
-// Drop this file on Cloudflare R2 and reference it from Webflow's custom code.
-// Requires the following importmap to be placed BEFORE this script tag in Webflow:
-//
-//  <script type="importmap">
-//  {
-//    "imports": {
-//      "three":              "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
-//      "three/addons/":      "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
-//      "gsap":               "https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js",
-//      "gsap/ScrollTrigger": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollTrigger.js"
-//    }
-//  }
-//  </script>
-//  <script type="module" src="https://YOUR-R2-BUCKET.r2.dev/apollo-webflow.js"></script>
-
+// Apollo ThreeJS animation
 import * as THREE from "three"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
@@ -22,12 +7,12 @@ import { ScrollTrigger } from "gsap/ScrollTrigger"
 
 gsap.registerPlugin(ScrollTrigger)
 
-// ─── CHANGE THESE TWO LINES to your actual Cloudflare R2 public URLs ───────
+// Sky Image and 3D Model
 const SKY_URL   = "https://webflow-zypsy.github.io/icarus/sky.png"
 const MODEL_URL = "https://webflow-zypsy.github.io/icarus/apollo.glb"
 // ────────────────────────────────────────────────────────────────────────────
 
-// ---- perf instrumentation (console-friendly) ----
+// perf instrumentation
 const perf = {
   enabled: typeof performance !== "undefined" && typeof performance.mark === "function",
   flags: {
@@ -92,7 +77,7 @@ const swayState = {
   },
 }
 
-// ── World-scale UV generation ────────────────────────────────────────────────
+// World-scale UV generation
 const generateWorldScaleUVs = (mesh, texelsPerUnit) => {
   const geo = mesh.geometry
   if (!geo) return
@@ -126,7 +111,7 @@ const generateWorldScaleUVs = (mesh, texelsPerUnit) => {
   geo.attributes.uv.needsUpdate = true
 }
 
-// ── Procedural carbon fiber textures ────────────────────────────────────────
+// Procedural carbon fiber textures
 const makeCarbonFiberTextures = (opts = {}) => {
   const size     = 1024
   const towCount = opts.towCount || 32
@@ -280,7 +265,7 @@ const droneMats = {
 
 const CF_DENSITY = { glossy: 3.0, matte: 2.5 }
 
-// ── Renderer + Camera ────────────────────────────────────────────────────────
+// Renderer + Camera
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.set(0, 0.5, 2)
 
@@ -291,8 +276,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1
 
-// ── DOM setup — works inside Webflow ────────────────────────────────────────
-// The canvas is injected into #apollo-canvas-wrap (a div you create in Webflow)
+// DOM Setup – Webflow ready
+// The canvas is injected into #apollo-canvas-wrap
 // OR falls back to appending to body if that div doesn't exist.
 let styleTag = document.getElementById("apollo-scroll-styles")
 if (!styleTag) {
@@ -306,7 +291,7 @@ styleTag.textContent = `
   #apollo-scroll-root { position: relative; z-index: 1; pointer-events: none; }
 `
 
-// Mount canvas into the Webflow wrapper div (id="apollo-canvas-wrap")
+// Mount canvas into the wrapper div (id="apollo-canvas-wrap")
 // If you haven't added that div yet, it auto-creates and appends to body.
 let canvasWrap = document.getElementById("apollo-canvas-wrap")
 if (!canvasWrap) {
@@ -317,8 +302,7 @@ if (!canvasWrap) {
 canvasWrap.innerHTML = ""
 canvasWrap.appendChild(renderer.domElement)
 
-// scrollRoot is the Webflow section(s) that drive the scroll animation.
-// Give your scroll section(s) the id="apollo-scroll-root" in Webflow.
+// scrollRoot is the Webflow section(s) with id="apollo-scroll-root" that drive the scroll animation.
 // If it doesn't exist the script still works — GSAP will fall back to the body.
 let scrollRoot = document.getElementById("apollo-scroll-root")
 if (!scrollRoot) {
@@ -328,13 +312,13 @@ if (!scrollRoot) {
   document.body.appendChild(scrollRoot)
 }
 
-// ── Lighting ─────────────────────────────────────────────────────────────────
+// Lighting
 scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 0.35))
 const rimLight = new THREE.DirectionalLight(0xffffff, 0.55)
 rimLight.position.set(2, 1.0, -2)
 scene.add(rimLight)
 
-// ── Controls (user input disabled — camera driven by scroll) ─────────────────
+// Controls (user input disabled — camera driven by scroll)
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = false
 controls.enableRotate  = false
@@ -342,7 +326,7 @@ controls.enableZoom    = false
 controls.enablePan     = false
 controls.target.set(0, 0.3, 0)
 
-// ── Cloud shader layer ───────────────────────────────────────────────────────
+// Cloud shader layer
 const cloudVS = `
   varying vec2 vUv;
   varying vec3 vWorldPos;
@@ -419,7 +403,7 @@ for (const layer of [
   cloudUniforms.push(uniforms)
 }
 
-// ── Sky + Environment ────────────────────────────────────────────────────────
+// Sky + Environment
 const pmrem = new THREE.PMREMGenerator(renderer)
 pmrem.compileEquirectangularShader()
 
@@ -439,12 +423,12 @@ new THREE.TextureLoader().load(
   },
   undefined,
   (err) => {
-    console.error("❌ Sky failed to load:", SKY_URL, err)
+    console.error("Sky failed to load:", SKY_URL, err)
     perf.mark("sky-loaded"); perf.flags.skyReady = true
   }
 )
 
-// ── Model ────────────────────────────────────────────────────────────────────
+// Model
 const MODEL_TUNING = {
   extraScale: 16.0,
   rotation: new THREE.Euler(-Math.PI / 2, 0, 0),
@@ -521,8 +505,7 @@ new GLTFLoader().load(
       perf.flags.assetsReadyMarked = true; perf.mark("assets-ready")
     }
 
-    // ── GSAP scroll-scrubbed camera path ─────────────────────────────────────
-    // Exact poses from the original Vercel/Framer source
+    // GSAP scroll-scrubbed camera path
     const poses = {
       p0: { cam: { x: -1.152, y: 0.239,  z:  0.006 }, tgt: { x: 0, y: 0.3, z: 0 } },
       p1: { cam: { x: -1.859, y: 1.463,  z: -2.077 }, tgt: { x: 0, y: 0.3, z: 0 } },
@@ -626,10 +609,10 @@ new GLTFLoader().load(
     const pct = xhr.total ? Math.round((xhr.loaded / xhr.total) * 100) : null
     console.log(pct !== null ? `⬇️ GLB: ${pct}%` : `⬇️ GLB: ${Math.round(xhr.loaded / 1024)} KB`)
   },
-  (err) => console.error("❌ GLB failed:", MODEL_URL, err)
+  (err) => console.error("GLB failed:", MODEL_URL, err)
 )
 
-// ── Resize ───────────────────────────────────────────────────────────────────
+// Resize
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
@@ -638,7 +621,7 @@ window.addEventListener("resize", () => {
   ScrollTrigger.refresh()
 })
 
-// ── Render loop ──────────────────────────────────────────────────────────────
+// Render loop
 function animate() {
   const t = clock.elapsedTime
   clock.getDelta()
