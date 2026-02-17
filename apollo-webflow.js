@@ -522,6 +522,7 @@ new GLTFLoader().load(
     }
 
     // ── GSAP scroll-scrubbed camera path ─────────────────────────────────────
+    // Exact poses from the original Vercel/Framer source
     const poses = {
       p0: { cam: { x: -1.152, y: 0.239,  z:  0.006 }, tgt: { x: 0, y: 0.3, z: 0 } },
       p1: { cam: { x: -1.859, y: 1.463,  z: -2.077 }, tgt: { x: 0, y: 0.3, z: 0 } },
@@ -529,49 +530,73 @@ new GLTFLoader().load(
       p3: { cam: { x:  1.859, y: 4.317,  z: -0.007 }, tgt: { x: 0, y: 0.3, z: 0 } },
     }
 
-    const makeCurve = (pts) => {
-      const raw = new THREE.CatmullRomCurve3(pts, false, "centripetal")
-      const refined = new THREE.CatmullRomCurve3(raw.getSpacedPoints(300), false, "centripetal")
-      refined.arcLengthDivisions = 2000
-      return refined
-    }
+    const camCurveRaw = new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(poses.p0.cam.x, poses.p0.cam.y, poses.p0.cam.z),
+        new THREE.Vector3(poses.p1.cam.x, poses.p1.cam.y, poses.p1.cam.z),
+        new THREE.Vector3(poses.p2.cam.x, poses.p2.cam.y, poses.p2.cam.z),
+        new THREE.Vector3(poses.p3.cam.x, poses.p3.cam.y, poses.p3.cam.z),
+      ],
+      false,
+      "centripetal"
+    )
+    const camPts = camCurveRaw.getSpacedPoints(300)
+    const camCurve = new THREE.CatmullRomCurve3(camPts, false, "centripetal")
+    camCurve.arcLengthDivisions = 2000
 
-    const camCurve = makeCurve([
-      new THREE.Vector3(poses.p0.cam.x, poses.p0.cam.y, poses.p0.cam.z),
-      new THREE.Vector3(poses.p1.cam.x, poses.p1.cam.y, poses.p1.cam.z),
-      new THREE.Vector3(poses.p2.cam.x, poses.p2.cam.y, poses.p2.cam.z),
-      new THREE.Vector3(poses.p3.cam.x, poses.p3.cam.y, poses.p3.cam.z),
-    ])
-    const tgtCurve = makeCurve([
-      new THREE.Vector3(poses.p0.tgt.x, poses.p0.tgt.y, poses.p0.tgt.z),
-      new THREE.Vector3(poses.p1.tgt.x, poses.p1.tgt.y, poses.p1.tgt.z),
-      new THREE.Vector3(poses.p2.tgt.x, poses.p2.tgt.y, poses.p2.tgt.z),
-      new THREE.Vector3(poses.p3.tgt.x, poses.p3.tgt.y, poses.p3.tgt.z),
-    ])
+    const tgtCurveRaw = new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(poses.p0.tgt.x, poses.p0.tgt.y, poses.p0.tgt.z),
+        new THREE.Vector3(poses.p1.tgt.x, poses.p1.tgt.y, poses.p1.tgt.z),
+        new THREE.Vector3(poses.p2.tgt.x, poses.p2.tgt.y, poses.p2.tgt.z),
+        new THREE.Vector3(poses.p3.tgt.x, poses.p3.tgt.y, poses.p3.tgt.z),
+      ],
+      false,
+      "centripetal"
+    )
+    const tgtPts = tgtCurveRaw.getSpacedPoints(80)
+    const tgtCurve = new THREE.CatmullRomCurve3(tgtPts, false, "centripetal")
+    tgtCurve.arcLengthDivisions = 2000
 
     const travel = { t: 0 }
+
     const applyPose = (t) => {
-      const p = camCurve.getPointAt(t), q = tgtCurve.getPointAt(t)
+      const p = camCurve.getPointAt(t)
+      const q = tgtCurve.getPointAt(t)
       camera.position.set(p.x, p.y, p.z)
       controls.target.set(q.x, q.y, q.z)
       camera.lookAt(controls.target)
       swayState.enabled = true
     }
+
+    // Apply p0 immediately — this IS the starting view, no auto-framing override
     applyPose(0)
 
-    // Frame the model on first load
-    const fb = new THREE.Box3().setFromObject(object)
-    const fs = new THREE.Vector3(), fc = new THREE.Vector3()
-    fb.getSize(fs); fb.getCenter(fc)
-    const radius = Math.max(fs.x, fs.y, fs.z) * 0.6
-    const dist   = Math.max(2.0, radius / Math.tan((camera.fov * Math.PI) / 360))
-    camera.position.set(fc.x, fc.y + radius * 0.25, fc.z + dist)
-    controls.target.copy(fc); camera.lookAt(controls.target)
-
+    // Camera movement timeline
     const tl = gsap.timeline({ defaults: { ease: "none" } })
     tl.to(travel, { t: 1, duration: 1, onUpdate: () => applyPose(travel.t) })
 
+    // CSS filter timeline — matches Framer's grayscale fade-to-dark on scroll:
+    // start: grayscale(0.6) contrast(1) brightness(1)
+    // end:   grayscale(0.8) contrast(0.9) brightness(0.05)
+    const filterState = { grayscale: 0.6, contrast: 1.0, brightness: 1.0 }
+    const filterTl = gsap.timeline({ defaults: { ease: "none" } })
+    filterTl.to(filterState, {
+      grayscale: 0.8,
+      contrast: 0.9,
+      brightness: 0.05,
+      duration: 1,
+      onUpdate: () => {
+        canvasWrap.style.filter = `grayscale(${filterState.grayscale.toFixed(2)}) contrast(${filterState.contrast.toFixed(2)}) brightness(${filterState.brightness.toFixed(2)})`
+      }
+    })
+
+    // Set initial filter immediately
+    canvasWrap.style.filter = `grayscale(0.6) contrast(1) brightness(1)`
+
     ScrollTrigger.getAll().forEach((t) => t.kill())
+
+    // Camera movement — full scroll range
     ScrollTrigger.create({
       trigger: scrollRoot,
       start: "top top",
@@ -580,6 +605,17 @@ new GLTFLoader().load(
       animation: tl,
       invalidateOnRefresh: true,
     })
+
+    // CSS filter fade — starts halfway through scroll
+    ScrollTrigger.create({
+      trigger: scrollRoot,
+      start: "40% top",
+      end:   "bottom bottom",
+      scrub: 1.2,
+      animation: filterTl,
+      invalidateOnRefresh: true,
+    })
+
     ScrollTrigger.refresh()
 
     if (!perf.flags.interactiveReadyMarked) {
