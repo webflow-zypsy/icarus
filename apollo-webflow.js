@@ -502,15 +502,17 @@ new GLTFLoader().load(
     // GSAP scroll-scrubbed camera path
     // All poses are from behind and right of the aircraft, looking forward along the fuselage.
     // The camera pulls back and rises through the scroll — never going in front of the nose.
-    // p0 — close top-right isometric: camera above-right, looking down-left at drone (zoomed in 20%)
-    // p1 — rise and centre toward top-down
-    // p2 — top-down: camera directly above, drone facing away (tail at top, nose at bottom of frame)
-    // p3 — same top-down axis as p2, zoomed out 50% less than before
+    // p0 — close top-right isometric: camera above-right AND in front of drone (+Z = nose side)
+    //      so we see the top of the right wing with the nose visible, not the tail
+    // p1 — rise and arc toward top-down, staying on nose side
+    // p2 — top-down with nose pointing DOWN screen: camera above on +Z side,
+    //      lookAt target offset to +Z so nose appears at bottom of frame
+    // p3 — same as p2 but higher Y for zoom-out, drone smaller and centred
     const poses = {
-      p0: { cam: { x:  6.4, y:  9.6, z:  6.4 }, tgt: { x: 0, y: 0, z: 0 } },
-      p1: { cam: { x:  4.0, y: 16.0, z:  4.0 }, tgt: { x: 0, y: 0, z: 0 } },
-      p2: { cam: { x:  0.0, y: 20.0, z: -3.0 }, tgt: { x: 0, y: 0, z: 0 } },
-      p3: { cam: { x:  0.0, y: 29.0, z: -3.0 }, tgt: { x: 0, y: 0, z: 0 } },
+      p0: { cam: { x:  6.4, y:  9.6, z:  6.4 }, tgt: { x: -1.0, y: 0, z:  2.0 } },
+      p1: { cam: { x:  3.0, y: 16.0, z:  5.0 }, tgt: { x:  0.0, y: 0, z:  1.0 } },
+      p2: { cam: { x:  0.0, y: 20.0, z:  4.0 }, tgt: { x:  0.0, y: 0, z: -2.0 } },
+      p3: { cam: { x:  0.0, y: 29.0, z:  4.0 }, tgt: { x:  0.0, y: 0, z: -2.0 } },
     }
 
     const camCurveRaw = new THREE.CatmullRomCurve3(
