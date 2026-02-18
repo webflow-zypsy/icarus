@@ -562,16 +562,13 @@ const MODEL_TUNING = {
 const pmrem = new THREE.PMREMGenerator(droneRenderer)
 pmrem.compileEquirectangularShader()
 
-// Toggled per-renderer so bgRenderer shows the HDR sky, droneRenderer is transparent
-let sceneEnvMap = null
-
 new RGBELoader().load(
   SKY_URL,
   (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping
-    sceneEnvMap = pmrem.fromEquirectangular(texture).texture
-    scene.environment = sceneEnvMap  // PBR reflections on materials
-    // scene.background toggled per-renderer in animate loop
+    const envMap = pmrem.fromEquirectangular(texture).texture
+    scene.environment = envMap   // used for PBR reflections
+    scene.background  = envMap   // renders the HDR as the visible sky
     scene.environmentRotation = new THREE.Euler(-840 * Math.PI / 180, 2070 * Math.PI / 180, 0)
     texture.dispose()
     console.log("✅ HDR loaded")
@@ -844,12 +841,8 @@ function animate() {
   // Clouds billboard toward the drone (close-up) camera
   CloudSystem.update(t, droneCamera)
 
-  // bgRenderer: show HDR sky as background
-  scene.background = sceneEnvMap
+  // Render background first, then drone on top
   bgRenderer.render(scene, bgCamera)
-
-  // droneRenderer: transparent background — only the drone model shows
-  scene.background = null
   droneRenderer.render(scene, droneCamera)
 
   requestAnimationFrame(animate)
