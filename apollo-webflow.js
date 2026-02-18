@@ -263,7 +263,7 @@ const droneMats = {
   }),
 }
 
-const CF_DENSITY = { glossy: 3.0, matte: 2.5 }
+const CF_DENSITY = { glossy: 0.35, matte: 0.28 }
 
 // Renderer + Camera
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -502,16 +502,15 @@ new GLTFLoader().load(
     // GSAP scroll-scrubbed camera path
     // All poses are from behind and right of the aircraft, looking forward along the fuselage.
     // The camera pulls back and rises through the scroll — never going in front of the nose.
-    //
-    // p0 — very close, slightly above fuselage pod, rear-right: fills frame with wing + pod
-    // p1 — pull back a little, more wing visible, pod shrinks in frame
-    // p2 — further back and higher, both wings starting to appear
-    // p3 — fully pulled back, full aircraft silhouette visible, horizon + clouds below
+    // p0 — close top-left isometric: camera above-left, looking down at drone
+    // p1 — rise and centre
+    // p2 — top-down centred: drone centred, camera directly above
+    // p3 — pulled back wide: drone small and centred, full sky visible
     const poses = {
-      p0: { cam: { x:  1.2, y:  0.35, z: -0.8 }, tgt: { x: -0.2, y: 0.10, z: 0 } },
-      p1: { cam: { x:  1.6, y:  0.55, z: -1.6 }, tgt: { x: -0.1, y: 0.12, z: 0 } },
-      p2: { cam: { x:  2.2, y:  0.90, z: -3.0 }, tgt: { x:  0.0, y: 0.15, z: 0 } },
-      p3: { cam: { x:  2.8, y:  1.40, z: -5.5 }, tgt: { x:  0.0, y: 0.10, z: 0 } },
+      p0: { cam: { x: -8,  y: 12,  z:  8  }, tgt: { x: 0, y: 0, z: 0 } },
+      p1: { cam: { x: -4,  y: 16,  z:  4  }, tgt: { x: 0, y: 0, z: 0 } },
+      p2: { cam: { x:  0,  y: 20,  z:  2  }, tgt: { x: 0, y: 0, z: 0 } },
+      p3: { cam: { x:  0,  y: 38,  z:  4  }, tgt: { x: 0, y: 0, z: 0 } },
     }
 
     const camCurveRaw = new THREE.CatmullRomCurve3(
