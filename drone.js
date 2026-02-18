@@ -543,14 +543,15 @@ bgRenderer.toneMapping = THREE.ACESFilmicToneMapping
 bgRenderer.toneMappingExposure = 3.2
 bgRenderer.setClearColor(0x000000, 0)
 bgRenderer.domElement.style.cssText = "width:100%;height:100%;display:block;"
+// The HDR sky renders via scene.background — no separate clear needed
 bgContainer.appendChild(bgRenderer.domElement)
 
 // =============================================================================
 // Assets — bg-drone.glb + bg-img.hdr
 // =============================================================================
 
-const SKY_URL   = "https://webflow-zypsy.github.io/icarus/bg-img.hdr"
-const MODEL_URL = "https://webflow-zypsy.github.io/icarus/bg-drone.glb"
+const SKY_URL   = "https://webflow-zypsy.github.io/icarus/drone-bg.hdr"
+const MODEL_URL = "https://webflow-zypsy.github.io/icarus/drone-apollo.glb"
 
 const MODEL_TUNING = {
   extraScale: 16.0,
@@ -566,7 +567,8 @@ new RGBELoader().load(
   (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping
     const envMap = pmrem.fromEquirectangular(texture).texture
-    scene.environment = envMap
+    scene.environment = envMap   // used for PBR reflections
+    scene.background  = envMap   // renders the HDR as the visible sky
     scene.environmentRotation = new THREE.Euler(-840 * Math.PI / 180, 2070 * Math.PI / 180, 0)
     texture.dispose()
     console.log("✅ HDR loaded")
