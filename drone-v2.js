@@ -630,7 +630,7 @@ const _clearColor = new THREE.Color()
 
 const HDR_URL   = "https://webflow-zypsy.github.io/icarus/green-512.hdr"  // PBR env reflections on drone materials
 const EXR_URL   = "https://webflow-zypsy.github.io/icarus/green-2k.exr"   // visible sky background + topo grid displacement
-const MODEL_URL = "https://webflow-zypsy.github.io/icarus/drone-apollo.glb"
+const MODEL_URL = "https://webflow-zypsy.github.io/icarus/apollo-draco.glb"
 
 const MODEL_TUNING = {
   extraScale: 16.0,
