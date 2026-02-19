@@ -857,16 +857,17 @@ window.addEventListener("resize", () => {
 //
 // gsap.quickTo pre-compiles the tween — safe to call on every mousemove.
 
-const mouseProxy = { x: 0, y: 0, roll: 0 }
+const mouseProxy = { x: 0, y: 0, pitch: 0, bank: 0 }
 
 const MOUSE_X_UNITS   = 0.3              // max X drift in world units
 const MOUSE_Y_UNITS   = 0.15             // max Y drift in world units
 const MOUSE_BANK_DEG  = 3                // max bank angle in degrees
 const MOUSE_BANK_RAD  = MOUSE_BANK_DEG * Math.PI / 180
 
-const quickX    = gsap.quickTo(mouseProxy, "x",    { duration: 0.9, ease: "power2.out" })
-const quickY    = gsap.quickTo(mouseProxy, "y",    { duration: 0.9, ease: "power2.out" })
-const quickRoll = gsap.quickTo(mouseProxy, "roll", { duration: 1.1, ease: "power3.out" })
+const quickX     = gsap.quickTo(mouseProxy, "x",     { duration: 0.9, ease: "power2.out" })
+const quickY     = gsap.quickTo(mouseProxy, "y",     { duration: 0.9, ease: "power2.out" })
+const quickPitch = gsap.quickTo(mouseProxy, "pitch", { duration: 1.1, ease: "power3.out" })
+const quickBank  = gsap.quickTo(mouseProxy, "bank",  { duration: 1.1, ease: "power3.out" })
 
 window.addEventListener("mousemove", (e) => {
   const nx =  (e.clientX / window.innerWidth)  * 2 - 1  // -1 = left,  +1 = right
@@ -874,13 +875,15 @@ window.addEventListener("mousemove", (e) => {
 
   quickX(nx * MOUSE_X_UNITS)
   quickY(ny * MOUSE_Y_UNITS)
-  // Bank around the fuselage (local Y after -90° X base rotation) — wings tilt, nose/tail stay fixed
-  quickRoll(nx * MOUSE_BANK_RAD)
+  // Left/right → X rotation (nose pitches, like yaw from viewer's angle)
+  quickPitch(nx * MOUSE_BANK_RAD)
+  // Up/down → Y rotation (wings bank around fuselage, nose/tail stay fixed)
+  quickBank(-ny * MOUSE_BANK_RAD)
 })
 
 // Cursor leaves → ease everything back to neutral
 window.addEventListener("mouseleave", () => {
-  quickX(0); quickY(0); quickRoll(0)
+  quickX(0); quickY(0); quickPitch(0); quickBank(0)
 })
 
 // =============================================================================
@@ -937,8 +940,8 @@ function animate(now) {
       droneBasePos.z
     )
     droneObject.rotation.set(
-      droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp,
-      droneBaseRot.y + mouseProxy.roll,  // bank around fuselage axis (Y) — wings tilt, nose/tail fixed
+      droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp + mouseProxy.pitch,  // left/right → X
+      droneBaseRot.y + mouseProxy.bank,   // up/down → Y, wings bank around fuselage
       droneBaseRot.z
     )
   }
