@@ -844,42 +844,42 @@ window.addEventListener("resize", () => {
 })
 
 // =============================================================================
-// Mouse parallax — CSS translate on #scene-drone via GSAP quickTo
+// Mouse parallax — world-space position + roll on the drone model via GSAP quickTo
 // =============================================================================
-// The drone canvas is shifted in CSS space so it doesn't interfere with world-
-// space position (bob animation, reveal, camera math all stay untouched).
+// Offsets are applied on top of droneBasePos/droneBaseRot each frame in the
+// animate loop, so they layer cleanly over the bob animation.
 //
-// Ranges:  cursor left edge   → translateX(-2rem)
-//          cursor right edge  → translateX(+2rem)
-//          cursor top edge    → translateY(-1rem)
-//          cursor bottom edge → translateY(+1rem)
+// Ranges (world units, tuned to extraScale:16):
+//   cursor left edge   → X: -0.3,  roll: +3°
+//   cursor right edge  → X: +0.3,  roll: -3°
+//   cursor top edge    → Y: +0.15
+//   cursor bottom edge → Y: -0.15
 //
-// gsap.quickTo returns a pre-compiled setter — much faster than gsap.to()
-// called on every mousemove. duration + ease give the smoothness/lag.
+// gsap.quickTo pre-compiles the tween — safe to call on every mousemove.
 
-const MOUSE_X_REM = 2   // max horizontal offset in rem
-const MOUSE_Y_REM = 1   // max vertical offset in rem
+const mouseProxy = { x: 0, y: 0, roll: 0 }
 
-const moveX = gsap.quickTo(droneContainer, "x", { duration: 0.8, ease: "power2.out" })
-const moveY = gsap.quickTo(droneContainer, "y", { duration: 0.8, ease: "power2.out" })
+const MOUSE_X_UNITS   = 0.3              // max X drift in world units
+const MOUSE_Y_UNITS   = 0.15             // max Y drift in world units
+const MOUSE_ROLL_DEG  = 3                // max roll in degrees
+const MOUSE_ROLL_RAD  = MOUSE_ROLL_DEG * Math.PI / 180
 
-// GSAP's "x"/"y" on a DOM element writes px, so convert rem → px at event time
-// (respects the user's root font size)
-function remToPx(rem) { return rem * parseFloat(getComputedStyle(document.documentElement).fontSize) }
+const quickX    = gsap.quickTo(mouseProxy, "x",    { duration: 0.9, ease: "power2.out" })
+const quickY    = gsap.quickTo(mouseProxy, "y",    { duration: 0.9, ease: "power2.out" })
+const quickRoll = gsap.quickTo(mouseProxy, "roll", { duration: 1.1, ease: "power3.out" })
 
 window.addEventListener("mousemove", (e) => {
-  // Normalise to -1 … +1 from screen edges
-  const nx = (e.clientX / window.innerWidth)  * 2 - 1   // -1 = left,  +1 = right
-  const ny = (e.clientY / window.innerHeight) * 2 - 1   // -1 = top,   +1 = bottom
+  const nx =  (e.clientX / window.innerWidth)  * 2 - 1  // -1 = left,  +1 = right
+  const ny = -(e.clientY / window.innerHeight) * 2 + 1  // -1 = bottom, +1 = top
 
-  moveX(nx * remToPx(MOUSE_X_REM))
-  moveY(ny * remToPx(MOUSE_Y_REM))
+  quickX(nx * MOUSE_X_UNITS)
+  quickY(ny * MOUSE_Y_UNITS)
+  quickRoll(-nx * MOUSE_ROLL_RAD)   // right cursor → roll right (negative Z in local space)
 })
 
-// When the cursor leaves the window, ease back to centre
+// Cursor leaves → ease everything back to neutral
 window.addEventListener("mouseleave", () => {
-  moveX(0)
-  moveY(0)
+  quickX(0); quickY(0); quickRoll(0)
 })
 
 // =============================================================================
@@ -929,8 +929,17 @@ function animate(now) {
     const bobFreq = (2 * Math.PI) / bobPeriod, stallFreq = (2 * Math.PI) / stallPeriod
     const stall = 1.0 - stallDepth * (Math.cos(t * stallFreq) ** 2)
     const dy    = Math.sin(t * bobFreq) * bobAmp * stall
-    droneObject.position.set(droneBasePos.x, droneBasePos.y + dy, droneBasePos.z)
-    droneObject.rotation.set(droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp, droneBaseRot.y, droneBaseRot.z)
+    // Mouse offsets layer on top of bob — mouseProxy eased by GSAP
+    droneObject.position.set(
+      droneBasePos.x + mouseProxy.x,
+      droneBasePos.y + dy + mouseProxy.y,
+      droneBasePos.z
+    )
+    droneObject.rotation.set(
+      droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp,
+      droneBaseRot.y,
+      droneBaseRot.z + mouseProxy.roll   // bank/roll toward cursor direction
+    )
   }
 
   // --- Drone construction reveal ---
