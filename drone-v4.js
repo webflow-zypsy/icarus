@@ -861,8 +861,8 @@ const mouseProxy = { x: 0, y: 0, roll: 0 }
 
 const MOUSE_X_UNITS   = 0.3              // max X drift in world units
 const MOUSE_Y_UNITS   = 0.15             // max Y drift in world units
-const MOUSE_ROLL_DEG  = 3                // max roll in degrees
-const MOUSE_ROLL_RAD  = MOUSE_ROLL_DEG * Math.PI / 180
+const MOUSE_BANK_DEG  = 3                // max bank angle in degrees
+const MOUSE_BANK_RAD  = MOUSE_BANK_DEG * Math.PI / 180
 
 const quickX    = gsap.quickTo(mouseProxy, "x",    { duration: 0.9, ease: "power2.out" })
 const quickY    = gsap.quickTo(mouseProxy, "y",    { duration: 0.9, ease: "power2.out" })
@@ -874,7 +874,8 @@ window.addEventListener("mousemove", (e) => {
 
   quickX(nx * MOUSE_X_UNITS)
   quickY(ny * MOUSE_Y_UNITS)
-  quickRoll(-nx * MOUSE_ROLL_RAD)   // right cursor → roll right (negative Z in local space)
+  // Bank around the fuselage (local Y after -90° X base rotation) — wings tilt, nose/tail stay fixed
+  quickRoll(nx * MOUSE_BANK_RAD)
 })
 
 // Cursor leaves → ease everything back to neutral
@@ -937,8 +938,8 @@ function animate(now) {
     )
     droneObject.rotation.set(
       droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp,
-      droneBaseRot.y,
-      droneBaseRot.z + mouseProxy.roll   // bank/roll toward cursor direction
+      droneBaseRot.y + mouseProxy.roll,  // bank around fuselage axis (Y) — wings tilt, nose/tail fixed
+      droneBaseRot.z
     )
   }
 
