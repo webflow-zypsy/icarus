@@ -875,10 +875,10 @@ window.addEventListener("mousemove", (e) => {
 
   quickX(nx * MOUSE_X_UNITS)
   quickY(ny * MOUSE_Y_UNITS)
-  // Left/right → X rotation (nose pitches, like yaw from viewer's angle)
+  // Left/right → Y rotation (nose/tail swing)
   quickPitch(nx * MOUSE_BANK_RAD)
-  // Up/down → Y rotation (wings bank around fuselage, nose/tail stay fixed)
-  quickBank(-ny * MOUSE_BANK_RAD)
+  // Up/down → X rotation (wings tilt around fuselage), inverted so cursor up = wings tilt up
+  quickBank(ny * MOUSE_BANK_RAD)
 })
 
 // Cursor leaves → ease everything back to neutral
@@ -940,8 +940,8 @@ function animate(now) {
       droneBasePos.z
     )
     droneObject.rotation.set(
-      droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp + mouseProxy.pitch,  // left/right → X
-      droneBaseRot.y + mouseProxy.bank,   // up/down → Y, wings bank around fuselage
+      droneBaseRot.x + Math.cos(t * bobFreq) * stall * pitchAmp + mouseProxy.bank,   // up/down → X, wings tilt
+      droneBaseRot.y + mouseProxy.pitch,  // left/right → Y, nose/tail swing
       droneBaseRot.z
     )
   }
