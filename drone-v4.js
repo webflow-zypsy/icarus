@@ -876,7 +876,7 @@ window.addEventListener("mousemove", (e) => {
   quickX(nx * MOUSE_X_UNITS)
   quickY(ny * MOUSE_Y_UNITS)
   // Left/right → Y rotation (nose/tail swing)
-  quickPitch(nx * MOUSE_BANK_RAD)
+  quickPitch(-nx * MOUSE_BANK_RAD)
   // Up/down → X rotation (wings tilt around fuselage), inverted so cursor up = wings tilt up
   quickBank(ny * MOUSE_BANK_RAD)
 })
