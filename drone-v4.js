@@ -861,7 +861,7 @@ const mouseProxy = { x: 0, y: 0, pitch: 0, bank: 0 }
 
 const MOUSE_X_UNITS   = 0.3              // max X drift in world units
 const MOUSE_Y_UNITS   = 0.15             // max Y drift in world units
-const MOUSE_BANK_DEG  = 3                // max bank angle in degrees
+const MOUSE_BANK_DEG  = 2.4              // max bank angle in degrees (3° × 0.8)
 const MOUSE_BANK_RAD  = MOUSE_BANK_DEG * Math.PI / 180
 
 const quickX     = gsap.quickTo(mouseProxy, "x",     { duration: 0.9, ease: "power2.out" })
@@ -876,9 +876,9 @@ window.addEventListener("mousemove", (e) => {
   quickX(nx * MOUSE_X_UNITS)
   quickY(ny * MOUSE_Y_UNITS)
   // Left/right → Y rotation (nose/tail swing)
-  quickPitch(-nx * MOUSE_BANK_RAD)
+  quickPitch(-ny * MOUSE_BANK_RAD)
   // Up/down → X rotation (wings tilt around fuselage), inverted so cursor up = wings tilt up
-  quickBank(ny * MOUSE_BANK_RAD)
+  quickBank(nx * MOUSE_BANK_RAD)
 })
 
 // Cursor leaves → ease everything back to neutral
