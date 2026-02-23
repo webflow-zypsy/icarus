@@ -355,13 +355,16 @@ window.Webflow.push(function () {
   const SOLAR_DENSITY = 3.0
 
   // ── Camera ────────────────────────────────────────────────────────────────
-  const camera = new THREE.PerspectiveCamera(15, mountEl.clientWidth / mountEl.clientHeight, 0.1, 1000)
+  // Use window size as fallback — mountEl may report 0x0 before first paint
+  const initW = mountEl.clientWidth  || window.innerWidth
+  const initH = mountEl.clientHeight || window.innerHeight
+  const camera = new THREE.PerspectiveCamera(15, initW / initH, 0.1, 1000)
   camera.position.set(0, 1.2, 5.2)
   const cameraTarget = new THREE.Vector3(0, 0.3, 0)
 
   // ── Renderer → mount into #scene-drone ───────────────────────────────────
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setSize(mountEl.clientWidth, mountEl.clientHeight)
+  renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping      = THREE.ACESFilmicToneMapping
@@ -407,10 +410,11 @@ window.Webflow.push(function () {
   })
 
   // ── Scroll-driven camera poses ────────────────────────────────────────────
+  // Model is auto-normalized to ~1.4 units. Poses scaled accordingly.
   const poses = [
-    { cam: new THREE.Vector3(-23.705, 16.498, -19.656), tgt: new THREE.Vector3(0.6, 0.98, 0) },
-    { cam: new THREE.Vector3(-38.986, 29.477,       0), tgt: new THREE.Vector3(0.6, 0.98, 0) },
-    { cam: new THREE.Vector3(-29.263, 37.163,   0.053), tgt: new THREE.Vector3(0.6, 0.98, 0) },
+    { cam: new THREE.Vector3(-1.482, 1.031, -1.228), tgt: new THREE.Vector3(0, 0.06, 0) },
+    { cam: new THREE.Vector3(-2.437, 1.842,      0), tgt: new THREE.Vector3(0, 0.06, 0) },
+    { cam: new THREE.Vector3(-1.829, 2.323,  0.003), tgt: new THREE.Vector3(0, 0.06, 0) },
   ]
 
   // scrollT is set by GSAP ScrollTrigger (0 → 1)
@@ -443,8 +447,8 @@ window.Webflow.push(function () {
 
   // ── Model load ────────────────────────────────────────────────────────────
   const MODEL_TUNING = {
-    extraScale: 16.0,
-    rotation:   new THREE.Euler(-Math.PI / 2, 0, 0),
+    extraScale: 1.0,                              // model auto-normalized to ~1.4 units
+    rotation:   new THREE.Euler(-Math.PI / 2, 0, 0), // Blender Z-up → Y-up
   }
 
   gltfLoader.load(DRONE_ASSETS.model, (gltf) => {
@@ -582,10 +586,13 @@ window.Webflow.push(function () {
 
     // Scroll-driven CSS filter (desaturation + dim as user scrolls)
     const scrollPct = Math.min(smoothT / 0.5, 1)
-    const gray       = 0.60 + scrollPct * 0.20
+    const gray       = scrollPct * 0.30          // 0% → 30% grayscale
     const contrast   = 1.0  - scrollPct * 0.1
     const brightness = 1.0  - scrollPct * 0.15
-    renderer.domElement.style.filter = `grayscale(${gray}) contrast(${contrast}) brightness(${brightness})`
+    renderer.domElement.style.filter =
+      gray > 0.001
+        ? `grayscale(${gray}) contrast(${contrast}) brightness(${brightness})`
+        : "none"
 
     // Scroll-driven env rotation
     if (scene.environmentRotation) {
