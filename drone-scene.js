@@ -445,7 +445,7 @@ window.addEventListener("load", () => {
   const initW = mountEl.clientWidth  || window.innerWidth
   const initH = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(
-    20,           // fov in degrees — widened from 15 to compensate for 16:9 vs Framer's 2:1 aspect
+    15,           // fov in degrees — matches original Framer source
     initW / initH,
     0.1, 1000
   )
@@ -509,7 +509,7 @@ window.addEventListener("load", () => {
   // These poses are the original Framer values ÷ 16 (the original extraScale).
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    { cam: new THREE.Vector3(-1.482,  0.72, -1.05), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 0 — top of scroll
+    { cam: new THREE.Vector3(-0.95,  1.35,  0.15), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 0 — top of scroll
     { cam: new THREE.Vector3(-2.437,  1.842,  0),     tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 1 — mid scroll
     { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 2 — bottom of scroll
   ]
