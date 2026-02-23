@@ -28,7 +28,7 @@ window.addEventListener("load", () => {
   const clock = new THREE.Clock(), scene = new THREE.Scene()
   let droneObject = null
   let droneBasePos = new THREE.Vector3(), droneBaseRot = new THREE.Euler()
-  const bobCfg = { bobAmp:0.008, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.0015 }
+  const bobCfg = { bobAmp:0.004, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.00075 }
 
   const reveal = {
     active:false, startTime:0, wireframeDuration:1.3, fadeOutDuration:0.8, maxRadius:1,
