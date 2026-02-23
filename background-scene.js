@@ -10,7 +10,7 @@ const BG_ASSETS = {
   image: "https://webflow-zypsy.github.io/icarus/background-v2.webp",
 }
 
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+import * as THREE from "three"
 
 window.addEventListener("load", () => {
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
