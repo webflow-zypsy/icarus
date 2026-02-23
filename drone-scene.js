@@ -180,9 +180,9 @@ window.addEventListener("load", () => {
   })
 
   const poses=[
-    {cam:new THREE.Vector3(-1.630, 0.794, -0.737),tgt:new THREE.Vector3(0,0.06,0)},
-    {cam:new THREE.Vector3(-2.681, 1.418,  0.614),tgt:new THREE.Vector3(0,0.06,0)},
-    {cam:new THREE.Vector3(-2.012, 1.789,  0.617),tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-1.704,1.186,-1.412),tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-2.803,2.118,0),tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-2.103,2.671,0.003),tgt:new THREE.Vector3(0,0.06,0)},
   ]
   let scrollT=0,smoothT=0
   function applyPose(t){
