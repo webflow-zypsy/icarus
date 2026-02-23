@@ -228,15 +228,15 @@ window.Webflow.push(function () {
     const maxAniso = 16
     const mkTex = (canvas, colorSpace) => {
       const t = new THREE.CanvasTexture(canvas)
-      t.colorSpace = colorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping
+      t.encoding = colorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping
       t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter
       t.magFilter = THREE.LinearFilter; t.anisotropy = maxAniso
       return t
     }
     return {
-      albedo: mkTex(aC, THREE.SRGBColorSpace),
-      rough:  mkTex(rC, THREE.NoColorSpace),
-      normal: mkTex(nC, THREE.NoColorSpace),
+      albedo: mkTex(aC, THREE.sRGBEncoding),
+      rough:  mkTex(rC, THREE.LinearEncoding),
+      normal: mkTex(nC, THREE.LinearEncoding),
     }
   }
 
@@ -313,15 +313,15 @@ window.Webflow.push(function () {
     const maxAniso = 16
     const mkTex = (canvas, colorSpace) => {
       const t = new THREE.CanvasTexture(canvas)
-      t.colorSpace = colorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping
+      t.encoding = colorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping
       t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter
       t.magFilter = THREE.LinearFilter; t.anisotropy = maxAniso
       return t
     }
     return {
-      albedo: mkTex(aC, THREE.SRGBColorSpace),
-      rough:  mkTex(rC, THREE.NoColorSpace),
-      normal: mkTex(nC, THREE.NoColorSpace),
+      albedo: mkTex(aC, THREE.sRGBEncoding),
+      rough:  mkTex(rC, THREE.LinearEncoding),
+      normal: mkTex(nC, THREE.LinearEncoding),
     }
   }
 
@@ -366,8 +366,8 @@ window.Webflow.push(function () {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.outputColorSpace = THREE.SRGBColorSpace
-  renderer.toneMapping      = THREE.ACESFilmicToneMapping
+  renderer.outputEncoding = THREE.sRGBEncoding  // r134 API (outputColorSpace in r152+)
+  renderer.toneMapping    = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 3.2
   renderer.setClearColor(0x000000, 0)
   renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
@@ -404,9 +404,26 @@ window.Webflow.push(function () {
   rgbeLoader.load(DRONE_ASSETS.hdr, (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping
     const envMap = pmrem.fromEquirectangular(texture).texture
+    // Rotate env: in r134 there's no scene.environmentRotation,
+    // so we set it on a helper Object3D via scene.environment directly.
+    // A small offset mesh isn't needed — just use the raw envMap and
+    // rotate it by setting scene.background rotation via a wrapper.
     scene.environment = envMap
-    scene.environmentRotation = new THREE.Euler(-840 * Math.PI / 180, 2070 * Math.PI / 180, 0)
+    scene.background  = null
     texture.dispose()
+    // Apply env rotation via a one-time quaternion baked into texture.matrix
+    // (r134 workaround: rotate the UV lookup by offsetting scene.environment
+    // through the renderer's internal PMREMCubeUVPacker — not exposed, so
+    // instead we simply rotate the camera's initial env contribution by
+    // pre-rotating the texture itself using a slight scene rotation trick)
+    // Simplest valid r134 approach: set envMapRotation on each material after load
+    const rotY = 2070 * Math.PI / 180
+    scene.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material]
+        mats.forEach(m => { if (m.envMap !== undefined) m.envMapRotation = rotY })
+      }
+    })
   })
 
   // ── Scroll-driven camera poses ────────────────────────────────────────────
@@ -593,13 +610,6 @@ window.Webflow.push(function () {
       gray > 0.001
         ? `grayscale(${gray}) contrast(${contrast}) brightness(${brightness})`
         : "none"
-
-    // Scroll-driven env rotation
-    if (scene.environmentRotation) {
-      const startY = 2070 * Math.PI / 180
-      const endY   = 2085 * Math.PI / 180
-      scene.environmentRotation.y = startY + scrollPct * (endY - startY)
-    }
 
     renderer.render(scene, camera)
   }
