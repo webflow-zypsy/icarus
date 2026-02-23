@@ -28,7 +28,7 @@ window.addEventListener("load", () => {
   const clock = new THREE.Clock(), scene = new THREE.Scene()
   let droneObject = null
   let droneBasePos = new THREE.Vector3(), droneBaseRot = new THREE.Euler()
-  const bobCfg = { bobAmp:0.005, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.001 }
+  const bobCfg = { bobAmp:0.04, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.0075 }
 
   const reveal = {
     active:false, startTime:0, wireframeDuration:1.3, fadeOutDuration:0.8, maxRadius:1,
@@ -130,13 +130,13 @@ window.addEventListener("load", () => {
     const cW=(sz-(cCols+1)*cGap)/cCols,cH=(sz-(cRows+1)*cGap)/cRows
     const mk=()=>{const c=document.createElement("canvas");c.width=c.height=sz;return{c,ctx:c.getContext("2d")}}
     const cx=col=>cGap+col*(cW+cGap),cy=row=>cGap+row*(cH+cGap)
-    const{c:aC,ctx:a}=mk(); a.fillStyle="#2a2a30"; a.fillRect(0,0,sz,sz)
+    const{c:aC,ctx:a}=mk(); a.fillStyle="#474751"; a.fillRect(0,0,sz,sz)
     for(let row=0;row<cRows;row++) for(let col=0;col<cCols;col++){
-      const x=cx(col),y=cy(row),rv=Math.random()*3-1.5
-      a.fillStyle=`rgb(${12+rv},${14+rv},${28+rv})`; a.fillRect(x,y,cW,cH)
-      a.strokeStyle="rgba(20,35,70,0.6)"; a.lineWidth=2; a.strokeRect(x+1,y+1,cW-2,cH-2)
-      for(let b=0;b<busN;b++){const barY=y+cH*(b+1)/(busN+1);a.strokeStyle="rgba(35,35,42,0.95)";a.lineWidth=1.5;a.beginPath();a.moveTo(x,barY);a.lineTo(x+cW,barY);a.stroke()}
-      a.strokeStyle="rgba(30,30,38,0.5)"; a.lineWidth=0.5
+      const x=cx(col),y=cy(row),rv=Math.random()*4-2
+      a.fillStyle=`rgb(${6+rv},${8+rv},${18+rv})`; a.fillRect(x,y,cW,cH)
+      a.strokeStyle="rgba(30,50,100,0.5)"; a.lineWidth=2; a.strokeRect(x+1,y+1,cW-2,cH-2)
+      for(let b=0;b<busN;b++){const barY=y+cH*(b+1)/(busN+1);a.strokeStyle="rgba(50,50,58,0.95)";a.lineWidth=1.5;a.beginPath();a.moveTo(x,barY);a.lineTo(x+cW,barY);a.stroke()}
+      a.strokeStyle="rgba(45,45,55,0.5)"; a.lineWidth=0.5
       for(let fx=x+fSp;fx<x+cW;fx+=fSp){a.beginPath();a.moveTo(fx,y);a.lineTo(fx,y+cH);a.stroke()}
     }
     const{c:rC,ctx:r}=mk(); r.fillStyle="rgb(90,90,90)"; r.fillRect(0,0,sz,sz)
@@ -152,13 +152,13 @@ window.addEventListener("load", () => {
 
   const cf=makeCF({glossy:false,towCount:24}), sol=makeSolar()
   const droneMats = {
-    solarPanel: new THREE.MeshPhysicalMaterial({color:0x222228,map:sol.albedo,metalness:0.05,roughness:0.35,roughnessMap:sol.rough,clearcoat:0.6,clearcoatRoughness:0.08,normalMap:sol.normal,normalScale:new THREE.Vector2(0.3,0.3),envMapIntensity:0.3,side:THREE.DoubleSide}),
+    solarPanel: new THREE.MeshPhysicalMaterial({color:0xffffff,map:sol.albedo,metalness:0.08,roughness:0.45,roughnessMap:sol.rough,clearcoat:0.9,clearcoatRoughness:0.05,normalMap:sol.normal,normalScale:new THREE.Vector2(0.4,0.4),envMapIntensity:0.5,side:THREE.DoubleSide}),
     carbonMatte:new THREE.MeshPhysicalMaterial({color:0x6d6d6d,map:cf.albedo,metalness:0.0,roughness:0.92,roughnessMap:cf.rough,clearcoat:0.0,normalMap:cf.normal,normalScale:new THREE.Vector2(0.2,0.2),envMapIntensity:0.25,side:THREE.DoubleSide}),
     tailMatte:  new THREE.MeshPhysicalMaterial({color:0xc9c9c9,map:cf.albedo,metalness:0.0,roughness:0.92,roughnessMap:cf.rough,clearcoat:0.0,normalMap:cf.normal,normalScale:new THREE.Vector2(0.2,0.2),envMapIntensity:0.25,side:THREE.DoubleSide}),
   }
 
   const initW=mountEl.clientWidth||window.innerWidth, initH=mountEl.clientHeight||window.innerHeight
-  const camera=new THREE.PerspectiveCamera(28,initW/initH,0.1,1000)
+  const camera=new THREE.PerspectiveCamera(15,initW/initH,0.1,1000)
   camera.position.set(0,1.2,5.2)
   const cameraTarget=new THREE.Vector3(0,0.3,0)
 
@@ -180,9 +180,9 @@ window.addEventListener("load", () => {
   })
 
   const poses=[
-    {cam:new THREE.Vector3(-1.1, 0.15, -0.5), tgt:new THREE.Vector3(0, 0.1, 0)},
-    {cam:new THREE.Vector3(-1.8, 0.45,  0.2), tgt:new THREE.Vector3(0, 0.1, 0)},
-    {cam:new THREE.Vector3(-1.4, 1.1,   0.1), tgt:new THREE.Vector3(0, 0.1, 0)},
+    {cam:new THREE.Vector3(-1.482,1.031,-1.228),tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-2.437,1.842,0),     tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-1.829,2.323,0.003), tgt:new THREE.Vector3(0,0.06,0)},
   ]
   let scrollT=0,smoothT=0
   function applyPose(t){
