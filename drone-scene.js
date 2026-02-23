@@ -10,9 +10,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-window.Webflow = window.Webflow || []
-window.Webflow.push(function () {
-
+window.addEventListener("load", function () {
 ;(function () {
   "use strict"
 
@@ -617,4 +615,4 @@ window.Webflow.push(function () {
 
 })()
 
-}) // end Webflow.push
+}) // end window load
