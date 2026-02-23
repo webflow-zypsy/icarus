@@ -180,9 +180,9 @@ window.addEventListener("load", () => {
   })
 
   const poses=[
-    {cam:new THREE.Vector3(-1.704,1.186,-1.412),tgt:new THREE.Vector3(0,0.06,0)},
-    {cam:new THREE.Vector3(-2.803,2.118,0),tgt:new THREE.Vector3(0,0.06,0)},
-    {cam:new THREE.Vector3(-2.103,2.671,0.003),tgt:new THREE.Vector3(0,0.06,0)},
+    {cam:new THREE.Vector3(-1.482, 1.031, -1.228),tgt:new THREE.Vector3(0.038, 0.061, 0)},
+    {cam:new THREE.Vector3(-2.437, 1.842,  0),    tgt:new THREE.Vector3(0.038, 0.061, 0)},
+    {cam:new THREE.Vector3(-1.829, 2.323,  0.003),tgt:new THREE.Vector3(0.038, 0.061, 0)},
   ]
   let scrollT=0,smoothT=0
   function applyPose(t){
@@ -253,8 +253,8 @@ window.addEventListener("load", () => {
       reveal.solidUniforms.revealRadius.value=0
       if(wl>=1){const fl=Math.min((el-reveal.wireframeDuration)/reveal.fadeOutDuration,1);reveal.solidUniforms.revealRadius.value=easeOut(fl)*reveal.maxRadius*1.05;if(reveal.wireframeMat)reveal.wireframeMat.opacity=0.6*(1-easeOut(fl));if(fl>=1)cleanupReveal()}
     }
-    const sp=Math.min(smoothT/0.5,1),gray=sp*0.30
-    renderer.domElement.style.filter=gray>0.001?`grayscale(${gray}) contrast(${1-sp*0.1}) brightness(${1-sp*0.15})`:"none"
+    const sp=Math.min(smoothT/0.5,1),gray=0.60+sp*0.20
+    renderer.domElement.style.filter=`grayscale(${gray}) contrast(${1-sp*0.1}) brightness(${1-sp*0.15})`
     if(scene.environmentRotation)scene.environmentRotation.y=2070*Math.PI/180+sp*15*Math.PI/180
     renderer.render(scene,camera)
   }
