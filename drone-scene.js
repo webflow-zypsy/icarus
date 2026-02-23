@@ -28,7 +28,7 @@ window.addEventListener("load", () => {
   const clock = new THREE.Clock(), scene = new THREE.Scene()
   let droneObject = null
   let droneBasePos = new THREE.Vector3(), droneBaseRot = new THREE.Euler()
-  const bobCfg = { bobAmp:0.01, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.002 }
+  const bobCfg = { bobAmp:0.005, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.001 }
 
   const reveal = {
     active:false, startTime:0, wireframeDuration:1.3, fadeOutDuration:0.8, maxRadius:1,
@@ -180,9 +180,9 @@ window.addEventListener("load", () => {
   })
 
   const poses=[
-    {cam:new THREE.Vector3(-3.5, 2.2, -2.8), tgt:new THREE.Vector3(0, 0.0, 0)},
-    {cam:new THREE.Vector3(-5.5, 4.2,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
-    {cam:new THREE.Vector3(-4.2, 6.0,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-2.2, 1.4, -1.8), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-3.5, 2.7,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-2.7, 3.8,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
   ]
   let scrollT=0,smoothT=0
   function applyPose(t){
