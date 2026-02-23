@@ -2,7 +2,7 @@
  * drone-scene.js  —  ES Module
  * Mounts Three.js drone scene into #scene-drone
  * Scroll driven by GSAP ScrollTrigger on #scenes-track
- * Load as: <script type="module" src="...drone-scene.js"></script>
+ * Requires importmap with "three" and "three/addons/" defined in <head>
  */
 
 // ─── ASSET URLS ───────────────────────────────────────────────────────────────
@@ -11,10 +11,10 @@ const DRONE_ASSETS = {
   model: "https://webflow-zypsy.github.io/icarus/apollo-draco.glb",
 }
 
-import * as THREE    from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-import { RGBELoader }  from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/RGBELoader.js"
-import { GLTFLoader }  from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js"
-import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js"
+import * as THREE     from "three"
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js"
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
 
 window.addEventListener("load", () => {
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
