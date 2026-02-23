@@ -509,9 +509,9 @@ window.addEventListener("load", () => {
   // These poses are the original Framer values ÷ 16 (the original extraScale).
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-      { cam: new THREE.Vector3(-23.705, 16.498, -19.656),  tgt: new THREE.Vector3(0.6, 0.98, 0) },  // pose 0 — top of scroll
-      { cam: new THREE.Vector3(-38.986, 29.477, 0), tgt: new THREE.Vector3(0.6, 0.98, 0) },         // pose 1 — mid scroll
-      { cam: new THREE.Vector3(-29.263, 37.163, 0.053), tgt: new THREE.Vector3(0.6, 0.98, 0) },     // pose 2 — bottom of scroll
+    { cam: new THREE.Vector3(-1.482,  1.031, -2.228), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 0 — top of scroll
+    { cam: new THREE.Vector3(-2.437,  1.842,  0),     tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 1 — mid scroll
+    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 2 — bottom of scroll
   ]
 
   let scrollT = 0, smoothT = 0
