@@ -58,13 +58,15 @@ window.Webflow.push(function () {
 
   // ── Scene / Camera ─────────────────────────────────────────────────────────
   const scene  = new THREE.Scene()
+  const initW = mountEl.clientWidth  || window.innerWidth
+  const initH = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(
-    70, mountEl.clientWidth / mountEl.clientHeight, 0.1, 1000
+    70, initW / initH, 0.1, 1000
   )
 
   // ── Renderer → mount into #scene-background ───────────────────────────────
   const renderer = new THREE.WebGLRenderer({ antialias: false })
-  renderer.setSize(mountEl.clientWidth, mountEl.clientHeight)
+  renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = 0          // NoToneMapping — true colors
   renderer.setClearColor(0xffffff, 1)
