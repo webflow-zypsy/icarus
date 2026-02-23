@@ -158,7 +158,7 @@ window.addEventListener("load", () => {
   }
 
   const initW=mountEl.clientWidth||window.innerWidth, initH=mountEl.clientHeight||window.innerHeight
-  const camera=new THREE.PerspectiveCamera(15,initW/initH,0.1,1000)
+  const camera=new THREE.PerspectiveCamera(28,initW/initH,0.1,1000)
   camera.position.set(0,1.2,5.2)
   const cameraTarget=new THREE.Vector3(0,0.3,0)
 
@@ -180,9 +180,9 @@ window.addEventListener("load", () => {
   })
 
   const poses=[
-    {cam:new THREE.Vector3(-0.6, 0.35, -0.5), tgt:new THREE.Vector3(0, 0.0, 0)},
-    {cam:new THREE.Vector3(-0.9, 0.55,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
-    {cam:new THREE.Vector3(-0.7, 0.85,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-3.5, 2.2, -2.8), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-5.5, 4.2,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
+    {cam:new THREE.Vector3(-4.2, 6.0,  0.0), tgt:new THREE.Vector3(0, 0.0, 0)},
   ]
   let scrollT=0,smoothT=0
   function applyPose(t){
