@@ -152,9 +152,9 @@ window.addEventListener("load", () => {
 
   // ── Camera poses ──────────────────────────────────────────────────────────────
   const poses = [
-    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0) },
-    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
-    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
+    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 70 },
+    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
+    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
   ]
   const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
   let scrollT = 0, smoothT = 0
@@ -169,7 +169,7 @@ window.addEventListener("load", () => {
   applyPose(0)
 
   ScrollTrigger.create({
-    trigger: "#scenes-track", start: "top top", end: "bottom center", scrub: 1,
+    trigger: "#scenes-track", start: "top top", end: "bottom top", scrub: 1,
     onUpdate: s => { scrollT = s.progress }
   })
 
