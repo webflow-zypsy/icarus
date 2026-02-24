@@ -15,7 +15,7 @@ const BG_ASSETS = {
 // crossfadeDuration — seconds the two sky spheres overlap during transition
 const LOOP = {
   period:           45.0,
-  crossfadeDuration: 5.0,
+  crossfadeDuration: 2.0,
 }
 
 import * as THREE from "three"
