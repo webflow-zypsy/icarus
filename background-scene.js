@@ -206,7 +206,7 @@ window.addEventListener("load", () => {
 
     // ── Intro reveal ────────────────────────────────────────────────────────────
     if (anim.phase === "waiting" && skyReady) {
-      anim.phase = "gridReveal"; anim.phaseStart = ns; cycleStart = ns
+      anim.phase = "gridReveal"; anim.phaseStart = ns
     }
 
     if (anim.phase === "gridReveal") {
@@ -220,7 +220,7 @@ window.addEventListener("load", () => {
       if (topoMat) topoMat.uniforms.uOpacity.value = 0.45 * (1 - e)
       const wb = 1 - e; renderer.setClearColor(_cc.setRGB(wb, wb, wb), 1)
       if (t >= 1) {
-        anim.phase = "running"
+        anim.phase = "running"; cycleStart = ns   // reset cycle clock here so offsets start from 0
         if (skyA) skyA.mat.uniforms.uOpacity.value = 1.0
         renderer.setClearColor(0x000000, 1)
         if (topoMesh) {
