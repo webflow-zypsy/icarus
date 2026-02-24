@@ -152,7 +152,7 @@ window.addEventListener("load", () => {
 
   // ── Camera poses ──────────────────────────────────────────────────────────────
   const poses = [
-    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 70 },
+    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
     { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
     { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
   ]
