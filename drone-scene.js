@@ -510,23 +510,24 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════════════════
   // SCROLL-DRIVEN CAMERA POSES
-  // Coordinate system (model is ~1.4 units wide, centred at origin):
-  //   X — left/right:   negative = left of drone body, positive = right
-  //   Y — elevation:    0 = wing level, 2.3 = top-down birds-eye, negative = below
+  // All poses orbit around the drone's centre (0, 0, 0) — the red dot.
+  // Coordinate system:
+  //   X — left/right:   negative = left of body, positive = right
+  //   Y — elevation:    0 = wing level, positive = above, negative = below
   //   Z — front/back:   0 = centred, negative = toward tail, positive = toward nose
   //
   // Pose 2 is the confirmed top-down anchor: (-1.829, 2.323, 0.003)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    // Pose 0 — low angle along the wing, camera just above wing level behind the body
-    // Close to the reference: fuselage cuts diagonally, near wing fills lower frame
-    { cam: new THREE.Vector3(-0.8,  0.5, -0.9), tgt: new THREE.Vector3(0.038, 0.061, 0) },
+    // Pose 0 — low angle, camera behind & left, just above wing level
+    // Fuselage runs diagonally from lower-right to upper-left in frame
+    { cam: new THREE.Vector3(-0.6,  0.4, -1.2), tgt: new THREE.Vector3(0, 0, 0) },
 
-    // Pose 1 — pulling up and out, mid-elevation side view
-    { cam: new THREE.Vector3(-2.437,  1.842,  0),     tgt: new THREE.Vector3(0.038, 0.061, 0) },
+    // Pose 1 — rising up and pulling left, mid-elevation
+    { cam: new THREE.Vector3(-2.0,  1.4,  -0.4), tgt: new THREE.Vector3(0, 0, 0) },
 
     // Pose 2 — top-down birds-eye (confirmed anchor pose)
-    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0.038, 0.061, 0) },
+    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0, 0, 0) },
   ]
 
   let scrollT = 0, smoothT = 0
