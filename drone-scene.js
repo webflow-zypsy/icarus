@@ -508,10 +508,25 @@ window.addEventListener("load", () => {
   // The model is normalised to ~1.4 units wide, centred at origin.
   // These poses are the original Framer values ÷ 16 (the original extraScale).
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCROLL-DRIVEN CAMERA POSES
+  // Coordinate system (model is ~1.4 units wide, centred at origin):
+  //   X — left/right:   negative = left of drone body, positive = right
+  //   Y — elevation:    0 = wing level, 2.3 = top-down birds-eye, negative = below
+  //   Z — front/back:   0 = centred, negative = toward tail, positive = toward nose
+  //
+  // Pose 2 is the confirmed top-down anchor: (-1.829, 2.323, 0.003)
+  // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    { cam: new THREE.Vector3(-1.482,  1.031, -1.228), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 0 — top of scroll
-    { cam: new THREE.Vector3(-2.437,  1.842,  0),     tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 1 — mid scroll
-    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0.038, 0.061, 0) },  // pose 2 — bottom of scroll
+    // Pose 0 — low angle along the wing, camera just above wing level behind the body
+    // Close to the reference: fuselage cuts diagonally, near wing fills lower frame
+    { cam: new THREE.Vector3(-0.8,  0.5, -0.9), tgt: new THREE.Vector3(0.038, 0.061, 0) },
+
+    // Pose 1 — pulling up and out, mid-elevation side view
+    { cam: new THREE.Vector3(-2.437,  1.842,  0),     tgt: new THREE.Vector3(0.038, 0.061, 0) },
+
+    // Pose 2 — top-down birds-eye (confirmed anchor pose)
+    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0.038, 0.061, 0) },
   ]
 
   let scrollT = 0, smoothT = 0
