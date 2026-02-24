@@ -551,7 +551,7 @@ window.addEventListener("load", () => {
     trigger: "#scenes-track",
     start:   "top top",
     end:     "bottom bottom",
-    scrub:   true,
+    scrub:   1,
     onUpdate: s => { scrollT = s.progress },
   })
 
