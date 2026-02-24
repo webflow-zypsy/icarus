@@ -435,8 +435,8 @@ window.addEventListener("load", () => {
   }
 
   // UV density — texels per world unit. Higher = finer / more zoomed-in texture.
-  const CF_DENSITY    = 40.0   // carbon fibre weave
-  const SOLAR_DENSITY =  3.0   // solar cell grid
+  const CF_DENSITY    = 120.0  // carbon fibre weave — higher = finer/smaller fibres
+  const SOLAR_DENSITY =   8.0  // solar cell grid — higher = more cells visible per wing
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMERA
