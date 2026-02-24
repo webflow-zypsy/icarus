@@ -520,15 +520,10 @@ window.addEventListener("load", () => {
   // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    // Pose 0 — diagonal aerial: camera above-left, behind body, looking down
-    { cam: new THREE.Vector3(-1.482,  1.031, -1.228), tgt: new THREE.Vector3(0, 0, 0) },
-
-    // Pose 1 — top-down: camera directly overhead, drone centered, fills frame
-    { cam: new THREE.Vector3(-2.437,  1.842,  0),  tgt: new THREE.Vector3(0, 0, 0) },
-
-    // Pose 2 — front view: camera at wing level directly in front of nose
-    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0, 0, 0) },
-  ]
+  { cam: new THREE.Vector3(-2.180, 1.140, -1.280), tgt: new THREE.Vector3(-0.255, -0.049, 0.008) },  // pose 0
+  { cam: new THREE.Vector3(-3.480, 2.760, 0.000), tgt: new THREE.Vector3(-0.255, -0.050, 0.003) },  // pose 1
+  { cam: new THREE.Vector3(-1.330, 4.230, 0.010), tgt: new THREE.Vector3(-0.255, -0.048, 0.006) },  // pose 2
+]
 
   let scrollT = 0, smoothT = 0
 
