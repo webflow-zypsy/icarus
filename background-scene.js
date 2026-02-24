@@ -174,7 +174,7 @@ window.addEventListener("load", () => {
   applyPose(0)
 
   ScrollTrigger.create({
-    trigger: "#scenes-track", start: "top top", end: "bottom bottom", scrub: true,
+    trigger: "#scenes-track", start: "top top", end: "bottom center", scrub: 1,
     onUpdate: s => { scrollT = s.progress }
   })
 
