@@ -157,9 +157,9 @@ window.addEventListener("load", () => {
 
   // ── Camera poses ──────────────────────────────────────────────────────────────
   const poses = [
-    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0) },
-    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
-    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
+    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 70 },
+    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 70 },
+    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 66 },
   ]
   const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
   let scrollT = 0, smoothT = 0
@@ -170,6 +170,11 @@ window.addEventListener("load", () => {
     _cp.lerpVectors(poses[i].cam, poses[i+1].cam, f)
     _ct.lerpVectors(poses[i].tgt, poses[i+1].tgt, f)
     camera.position.copy(_cp); camera.lookAt(_ct)
+    // Interpolate FOV between poses (falls back to 70 if fov not set)
+    const fovA = poses[i].fov ?? 70
+    const fovB = poses[i + 1].fov ?? 70
+    camera.fov = fovA + (fovB - fovA) * f
+    camera.updateProjectionMatrix()
   }
   applyPose(0)
 
