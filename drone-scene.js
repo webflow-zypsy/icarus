@@ -510,24 +510,27 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════════════════
   // SCROLL-DRIVEN CAMERA POSES
-  // All poses orbit around the drone's centre (0, 0, 0) — the red dot.
-  // Coordinate system:
-  //   X — left/right:   negative = left of body, positive = right
-  //   Y — elevation:    0 = wing level, positive = above, negative = below
-  //   Z — front/back:   0 = centred, negative = toward tail, positive = toward nose
+  // All poses orbit around (0,0,0) — the red dot at the drone's body centre.
   //
-  // Pose 2 is the confirmed top-down anchor: (-1.829, 2.323, 0.003)
+  // Coordinate system:
+  //   X — left/right:   negative = camera left of body, positive = right
+  //   Y — elevation:    0 = wing level, positive = above, negative = below
+  //   Z — front/back:   0 = centred, negative = behind tail, positive = in front of nose
+  //
+  // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    // Pose 0 — low angle, camera behind & left, just above wing level
-    // Fuselage runs diagonally from lower-right to upper-left in frame
-    { cam: new THREE.Vector3(-0.6,  0.4, -1.2), tgt: new THREE.Vector3(0, 0, 0) },
+    // Pose 0 — diagonal aerial: camera above-left, behind body, looking down
+    // Reference image 1: tail upper-left, near wing fills bottom, wingtip upper-right
+    { cam: new THREE.Vector3(-1.4,  1.2, -0.8), tgt: new THREE.Vector3(0, 0, 0) },
 
-    // Pose 1 — rising up and pulling left, mid-elevation
-    { cam: new THREE.Vector3(-2.0,  1.4,  -0.4), tgt: new THREE.Vector3(0, 0, 0) },
+    // Pose 1 — top-down: camera directly overhead, drone centered, fills frame
+    // Reference image 2: pure birds-eye, wings span full width
+    { cam: new THREE.Vector3( 0.0,  2.8,  0.0), tgt: new THREE.Vector3(0, 0, 0) },
 
-    // Pose 2 — top-down birds-eye (confirmed anchor pose)
-    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0, 0, 0) },
+    // Pose 2 — front view: camera at wing level directly in front of nose
+    // Reference image 3: drone faces camera head-on, perfectly centered
+    { cam: new THREE.Vector3( 0.0,  0.05,  2.2), tgt: new THREE.Vector3(0, 0, 0) },
   ]
 
   let scrollT = 0, smoothT = 0
