@@ -15,7 +15,7 @@ const BG_ASSETS = {
 // crossfadeDuration — seconds the two sky spheres overlap during transition
 const LOOP = {
   period:           45.0,
-  crossfadeDuration: 3.0,
+  crossfadeDuration: 5.0,
 }
 
 import * as THREE from "three"
@@ -244,11 +244,11 @@ window.addEventListener("load", () => {
       const crossStart = LOOP.period - LOOP.crossfadeDuration
 
       if (!crossfadeActive && cycleT >= crossStart) {
-        // Spawn skyB at offset 0 (start of cycle), rendered behind skyA
+        // Spawn skyB at offset 0 (start of cycle), rendered ON TOP of skyA
         crossfadeActive = true
         skyB = makeSkyMesh(loadedTexture)
         skyB.mesh.position.copy(camera.position)
-        skyB.mesh.renderOrder = -1001   // draw behind skyA
+        skyB.mesh.renderOrder = -999   // draw in front of skyA
         skyB.mat.uniforms.uOpacity.value = 0.0
         skyB.mat.uniforms.uHOffset.value = 0.0
         skyB.mat.uniforms.uVOffset.value = 0.0
@@ -259,8 +259,8 @@ window.addEventListener("load", () => {
         const cf = Math.min((cycleT - crossStart) / LOOP.crossfadeDuration, 1)
         const e  = easeInOut(cf)
 
-        skyA.mat.uniforms.uOpacity.value = 1.0 - e   // outgoing fades out
-        skyB.mat.uniforms.uOpacity.value = e          // incoming fades in
+        skyA.mat.uniforms.uOpacity.value = 1.0   // skyA stays fully visible throughout
+        skyB.mat.uniforms.uOpacity.value = e    // skyB fades in on top
 
         if (cf >= 1) {
           // Promote B to A, destroy old A, reset cycle clock
