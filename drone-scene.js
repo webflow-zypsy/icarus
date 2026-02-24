@@ -48,11 +48,11 @@ window.addEventListener("load", () => {
   // pitchAmp    — nose-pitch tilt in radians (very small values look realistic)
   // ═══════════════════════════════════════════════════════════════════════════
   const bobCfg = {
-    bobAmp:      0.002,
-    bobPeriod:   7.0,
-    stallPeriod: 5.0,
+    bobAmp:      0.003,
+    bobPeriod:   5.0,
+    stallPeriod: 3.0,
     stallDepth:  0.35,
-    pitchAmp:    0.001,
+    pitchAmp:    0.005,
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
