@@ -521,16 +521,13 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
     // Pose 0 — diagonal aerial: camera above-left, behind body, looking down
-    // Reference image 1: tail upper-left, near wing fills bottom, wingtip upper-right
-    { cam: new THREE.Vector3(-1.4,  1.2, -0.8), tgt: new THREE.Vector3(0, 0, 0) },
+    { cam: new THREE.Vector3(-1.482,  1.031, -1.228), tgt: new THREE.Vector3(0, 0, 0) },
 
     // Pose 1 — top-down: camera directly overhead, drone centered, fills frame
-    // Reference image 2: pure birds-eye, wings span full width
-    { cam: new THREE.Vector3( 0.0,  2.8,  0.0), tgt: new THREE.Vector3(0, 0, 0) },
+    { cam: new THREE.Vector3(-2.437,  1.842,  0),  tgt: new THREE.Vector3(0, 0, 0) },
 
     // Pose 2 — front view: camera at wing level directly in front of nose
-    // Reference image 3: drone faces camera head-on, perfectly centered
-    { cam: new THREE.Vector3( 0.0,  0.05,  2.2), tgt: new THREE.Vector3(0, 0, 0) },
+    { cam: new THREE.Vector3(-1.829,  2.323,  0.003), tgt: new THREE.Vector3(0, 0, 0) },
   ]
 
   let scrollT = 0, smoothT = 0
