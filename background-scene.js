@@ -11,11 +11,9 @@ const BG_ASSETS = {
 }
 
 // ─── LOOP CONFIG ──────────────────────────────────────────────────────────────
-// period          — seconds for one full animation cycle before it loops
-// crossfadeDuration — seconds the two sky spheres overlap during transition
+// period — seconds for one direction of travel (forward 45s, then reverse 45s)
 const LOOP = {
-  period:           45.0,
-  crossfadeDuration: 2.0,
+  period: 45.0,
 }
 
 import * as THREE from "three"
@@ -51,8 +49,6 @@ window.addEventListener("load", () => {
 
   // ── Sky mesh factory ──────────────────────────────────────────────────────────
   // Creates an independent sky sphere with its own material + uniforms.
-  // Both skyA and skyB reference the SAME texture object — no extra GPU memory
-  // for the image data, just a second draw call during the crossfade window.
   const DOME_H_FOV = 183.0 * Math.PI / 180.0
 
   function makeSkyMesh(tex) {
@@ -107,9 +103,8 @@ window.addEventListener("load", () => {
     // sky.mat.uniforms.tImage.value is the shared texture — do NOT dispose it
   }
 
-  // Active sky instances: A is always present, B only exists during crossfade
+  // Single sky instance — ping-pong animation needs only one sphere
   let skyA = null
-  let skyB = null
 
   // ── Topo wireframe ────────────────────────────────────────────────────────────
   const GS=180, GSZ=200, GOX=-1.5, GOZ=-1
@@ -157,9 +152,9 @@ window.addEventListener("load", () => {
 
   // ── Camera poses ──────────────────────────────────────────────────────────────
   const poses = [
-    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 70 },
-    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
-    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
+    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0) },
+    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
+    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0) },
   ]
   const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
   let scrollT = 0, smoothT = 0
@@ -170,16 +165,11 @@ window.addEventListener("load", () => {
     _cp.lerpVectors(poses[i].cam, poses[i+1].cam, f)
     _ct.lerpVectors(poses[i].tgt, poses[i+1].tgt, f)
     camera.position.copy(_cp); camera.lookAt(_ct)
-    // Interpolate FOV between poses (falls back to 70 if fov not set)
-    const fovA = poses[i].fov ?? 70
-    const fovB = poses[i + 1].fov ?? 70
-    camera.fov = fovA + (fovB - fovA) * f
-    camera.updateProjectionMatrix()
   }
   applyPose(0)
 
   ScrollTrigger.create({
-    trigger: "#scenes-track", start: "top top", end: "bottom top", scrub: 1,
+    trigger: "#scenes-track", start: "top top", end: "bottom center", scrub: 1,
     onUpdate: s => { scrollT = s.progress }
   })
 
@@ -190,8 +180,7 @@ window.addEventListener("load", () => {
   }).observe(mountEl)
 
   // ── Loop state ────────────────────────────────────────────────────────────────
-  let cycleStart      = 0      // absolute time when the current 45s cycle began
-  let crossfadeActive = false  // true only during the overlap window
+  let cycleStart = 0   // absolute time when the current cycle began
 
   // ── Render loop ───────────────────────────────────────────────────────────────
   let lastTime = 0
@@ -205,9 +194,8 @@ window.addEventListener("load", () => {
     if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
     applyPose(smoothT)
 
-    // Keep sky sphere(s) centred on camera so they never clip
+    // Keep sky sphere centred on camera so it never clips
     if (skyA) skyA.mesh.position.copy(camera.position)
-    if (skyB) skyB.mesh.position.copy(camera.position)
 
     // ── Intro reveal ────────────────────────────────────────────────────────────
     if (anim.phase === "waiting" && skyReady) {
@@ -236,50 +224,20 @@ window.addEventListener("load", () => {
 
     } else if (anim.phase === "running" && skyA) {
 
-      // ── Continuous offset animation ──────────────────────────────────────────
+      // ── Ping-pong offset animation ───────────────────────────────────────────
+      // totalT counts up forever. We divide by period to get which half-cycle
+      // we're in: even half = forward (0→1), odd half = reverse (1→0).
+      // This gives a seamless bounce with no hard cuts or crossfades needed.
       const ha     = 0.06 * (1 - Math.min(smoothT / 0.3, 1))
-      const cycleT = ns - cycleStart
-      const frac   = cycleT / LOOP.period   // 0 → 1 over the full period
+      const totalT = ns - cycleStart
+      const halfN  = Math.floor(totalT / LOOP.period)   // which half-cycle (0, 1, 2, ...)
+      const phase  = (totalT % LOOP.period) / LOOP.period  // 0 → 1 within this half
 
-      // skyA always shows the current position in the cycle
+      // Even half = forward, odd half = reverse
+      const frac = (halfN % 2 === 0) ? phase : 1.0 - phase
+
       skyA.mat.uniforms.uHOffset.value = frac * ha
       skyA.mat.uniforms.uVOffset.value = -frac * 0.10
-
-      // ── Crossfade trigger ────────────────────────────────────────────────────
-      const crossStart = LOOP.period - LOOP.crossfadeDuration
-
-      if (!crossfadeActive && cycleT >= crossStart) {
-        // Spawn skyB at offset 0 (start of cycle), rendered ON TOP of skyA
-        crossfadeActive = true
-        skyB = makeSkyMesh(loadedTexture)
-        skyB.mesh.position.copy(camera.position)
-        skyB.mesh.renderOrder = -999   // draw in front of skyA
-        skyB.mat.uniforms.uOpacity.value = 0.0
-        skyB.mat.uniforms.uHOffset.value = 0.0
-        skyB.mat.uniforms.uVOffset.value = 0.0
-      }
-
-      if (crossfadeActive && skyB) {
-        // cf goes 0 → 1 over the crossfade duration
-        const cf = Math.min((cycleT - crossStart) / LOOP.crossfadeDuration, 1)
-        const e  = easeInOut(cf)
-
-        skyA.mat.uniforms.uOpacity.value = 1.0   // skyA stays fully visible throughout
-        skyB.mat.uniforms.uOpacity.value = e    // skyB fades in on top
-
-        if (cf >= 1) {
-          // Promote B to A, destroy old A, reset cycle clock
-          destroySkyMesh(skyA)
-          skyA            = skyB
-          skyB            = null
-          crossfadeActive = false
-          cycleStart      = ns
-          skyA.mesh.renderOrder              = -1000
-          skyA.mat.uniforms.uOpacity.value   = 1.0
-          skyA.mat.uniforms.uHOffset.value   = 0.0
-          skyA.mat.uniforms.uVOffset.value   = 0.0
-        }
-      }
     }
 
     renderer.render(scene, camera)
