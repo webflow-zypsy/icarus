@@ -441,11 +441,13 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMERA
   // fov — field of view in degrees (narrower = more telephoto / compressed)
+  // The initial fov here is just the starting value; it gets overridden each
+  // frame by applyPose() which interpolates fov between poses.
   // ═══════════════════════════════════════════════════════════════════════════
   const initW = mountEl.clientWidth  || window.innerWidth
   const initH = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(
-    15,           // fov in degrees — matches original Framer source
+    15,           // fov in degrees — starting value, overridden by applyPose
     initW / initH,
     0.1, 1000
   )
@@ -499,34 +501,32 @@ window.addEventListener("load", () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SCROLL-DRIVEN CAMERA POSES
-  // Three poses interpolated across the full scroll range (0 → 1).
-  // Pose 0 = top of page, Pose 2 = bottom of page.
-  //
-  // cam — camera world position  Vector3(x, y, z)
-  // tgt — look-at target point   Vector3(x, y, z)
-  //
-  // The model is normalised to ~1.4 units wide, centred at origin.
-  // These poses are the original Framer values ÷ 16 (the original extraScale).
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SCROLL-DRIVEN CAMERA POSES
-  // All poses orbit around (0,0,0) — the red dot at the drone's body centre.
+  // All poses orbit around (0,0,0) — the drone's body centre.
   //
   // Coordinate system:
   //   X — left/right:   negative = camera left of body, positive = right
   //   Y — elevation:    0 = wing level, positive = above, negative = below
   //   Z — front/back:   0 = centred, negative = behind tail, positive = in front of nose
   //
+  // cam — camera world position
+  // tgt — look-at target point
+  // fov — field of view in degrees for this pose (interpolated between poses)
+  //
   // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-  { cam: new THREE.Vector3(-2.000, 1.080, -1.495), tgt: new THREE.Vector3(0.055, -0.150, 0.280), fov: 14.0  },  // pose 0
-  { cam: new THREE.Vector3(-1.700, 2.000, -0.045), tgt: new THREE.Vector3(-0.170, -0.100, -0.040), fov: 20.0  },  // pose 1
-  { cam: new THREE.Vector3(-1.000, 2.255, -0.045), tgt: new THREE.Vector3(-0.170, -0.100, -0.040), fov: 20.0  },  // pose 2
-]
+    { cam: new THREE.Vector3(-2.000, 1.080, -1.495), tgt: new THREE.Vector3(0.055, -0.150, 0.280),   fov: 14.0 },  // pose 0
+    { cam: new THREE.Vector3(-1.700, 2.000, -0.045), tgt: new THREE.Vector3(-0.170, -0.100, -0.040), fov: 20.0 },  // pose 1
+    { cam: new THREE.Vector3(-1.000, 2.255, -0.045), tgt: new THREE.Vector3(-0.170, -0.100, -0.040), fov: 20.0 },  // pose 2
+  ]
 
   let scrollT = 0, smoothT = 0
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // applyPose — interpolates camera position, target, and FOV across poses.
+  // FOV is lerped between adjacent poses and applied each frame, so each pose
+  // can have a distinct focal length that smoothly transitions on scroll.
+  // ─────────────────────────────────────────────────────────────────────────
   function applyPose(t) {
     const cl  = Math.max(0, Math.min(1, t))
     const seg = poses.length - 1
@@ -538,6 +538,11 @@ window.addEventListener("load", () => {
     camera.position.set(p.x, p.y, p.z)
     cameraTarget.set(q.x, q.y, q.z)
     camera.lookAt(cameraTarget)
+    // Interpolate FOV between poses (falls back to 15 if fov not set on a pose)
+    const fovA = poses[i].fov     ?? 15
+    const fovB = poses[i + 1].fov ?? 15
+    camera.fov = fovA + (fovB - fovA) * f
+    camera.updateProjectionMatrix()
   }
   applyPose(0)
 
