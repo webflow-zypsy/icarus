@@ -404,7 +404,7 @@ window.addEventListener("load", () => {
       clearcoat:          0.95,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
-      normalScale:        new THREE.Vector2(1.4, 1.4),
+      normalScale:        new THREE.Vector2(2.4, 2.4),
       envMapIntensity:    0.5,
       side:               THREE.DoubleSide,
     }),
