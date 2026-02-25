@@ -399,9 +399,9 @@ window.addEventListener("load", () => {
       color:              0xcccccc,
       map:                sol.albedo,
       metalness:          0.01,
-      roughness:          0.35,
+      roughness:          0.02,
       roughnessMap:       sol.rough,
-      clearcoat:          0.5,          // tempered glass over-coating
+      clearcoat:          0.95,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
       normalScale:        new THREE.Vector2(0.4, 0.4),
