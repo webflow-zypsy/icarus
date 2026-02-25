@@ -516,8 +516,8 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
     { cam: new THREE.Vector3(-2.070, 1.200, -1.400), tgt: new THREE.Vector3(0.115, -0.230, 0.332), fov: 13.5  },  // pose 0
-    { cam: new THREE.Vector3(-3.520, 2.360, -0.030), tgt: new THREE.Vector3(-0.238, 0.002, -0.030), fov: 13.5  },  // pose 1
-    { cam: new THREE.Vector3(-2.900, 2.850, -0.030), tgt: new THREE.Vector3(-0.238, -0.035, -0.030), fov: 13.5 },  // pose 2
+    { cam: new THREE.Vector3(-3.520, 2.360, -0.030), tgt: new THREE.Vector3(-0.238, 0.002, -0.030), fov: 11.5  },  // pose 1
+    { cam: new THREE.Vector3(-2.900, 2.850, -0.030), tgt: new THREE.Vector3(-0.238, -0.035, -0.030), fov: 11.5 },  // pose 2
   ]
   // Prev Pose 1 cam: new THREE.Vector3(-2.100, 1.600, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20
   // Prev Pose 2 cam: new THREE.Vector3(-3.155, 2.170, -0.030), tgt: new THREE.Vector3(-0.240, 0.000, -0.030), fov: 20
