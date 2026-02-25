@@ -404,7 +404,7 @@ window.addEventListener("load", () => {
       clearcoat:          0.7,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
-      normalScale:        new THREE.Vector2(0.6, 0.6),
+      normalScale:        new THREE.Vector2(1, 1),
       envMapIntensity:    0.5,
       side:               THREE.DoubleSide,
     }),
@@ -436,7 +436,7 @@ window.addEventListener("load", () => {
 
   // UV density — texels per world unit. Higher = finer / more zoomed-in texture.
   const CF_DENSITY    = 200.0  // carbon fibre weave — higher = finer/smaller fibres
-  const SOLAR_DENSITY =  50.0  // solar cell grid — higher = more cells visible per wing
+  const SOLAR_DENSITY =  48.0  // solar cell grid — higher = more cells visible per wing
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMERA
