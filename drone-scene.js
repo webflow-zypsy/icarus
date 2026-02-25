@@ -396,7 +396,7 @@ window.addEventListener("load", () => {
   // ═══════════════════════════════════════════════════════════════════════════
   const droneMats = {
     solarPanel: new THREE.MeshPhysicalMaterial({
-      color:              0xcccccc,
+      color:              0xffffff,
       map:                sol.albedo,
       metalness:          0.01,
       roughness:          0.02,
@@ -404,8 +404,8 @@ window.addEventListener("load", () => {
       clearcoat:          0.95,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
-      normalScale:        new THREE.Vector2(0.4, 0.4),
-      envMapIntensity:    0.2,
+      normalScale:        new THREE.Vector2(1.4, 1.4),
+      envMapIntensity:    0.5,
       side:               THREE.DoubleSide,
     }),
     carbonMatte: new THREE.MeshPhysicalMaterial({
