@@ -398,7 +398,7 @@ window.addEventListener("load", () => {
     solarPanel: new THREE.MeshPhysicalMaterial({
       color:              0xffffff,
       map:                sol.albedo,
-      metalness:          1.08,
+      metalness:          0.02,
       roughness:          0.45,
       roughnessMap:       sol.rough,
       clearcoat:          0.7,          // tempered glass over-coating
