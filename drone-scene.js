@@ -51,8 +51,8 @@ window.addEventListener("load", () => {
     bobAmp:      0.003,
     bobPeriod:   5.0,
     stallPeriod: 3.0,
-    stallDepth:  0.35,
-    pitchAmp:    0.005,
+    stallDepth:  0.30,
+    pitchAmp:    0.009,
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -399,7 +399,7 @@ window.addEventListener("load", () => {
       color:              0xffffff,
       map:                sol.albedo,
       metalness:          0.08,
-      roughness:          0.45,
+      roughness:          0.65,
       roughnessMap:       sol.rough,
       clearcoat:          0.7,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
