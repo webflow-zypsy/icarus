@@ -398,13 +398,13 @@ window.addEventListener("load", () => {
     solarPanel: new THREE.MeshPhysicalMaterial({
       color:              0xffffff,
       map:                sol.albedo,
-      metalness:          0.02,
-      roughness:          0.05,
+      metalness:          0.01,
+      roughness:          0.02,
       roughnessMap:       sol.rough,
-      clearcoat:          0.7,          // tempered glass over-coating
+      clearcoat:          0.95,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
-      normalScale:        new THREE.Vector2(1, 1),
+      normalScale:        new THREE.Vector2(0.6, 0.6),
       envMapIntensity:    0.5,
       side:               THREE.DoubleSide,
     }),
