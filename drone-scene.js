@@ -515,10 +515,13 @@ window.addEventListener("load", () => {
   // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-  { cam: new THREE.Vector3(-2.070, 1.200, -1.400), tgt: new THREE.Vector3(0.115, -0.230, 0.332), fov: 13.5  },  // pose 0
-  { cam: new THREE.Vector3(-2.100, 1.600, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0  },  // pose 1
-  { cam: new THREE.Vector3(-1.300, 2.150, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0 },  // pose 2
-]
+    { cam: new THREE.Vector3(-2.070, 1.200, -1.400), tgt: new THREE.Vector3(0.115, -0.230, 0.332), fov: 13.5  },  // pose 0
+    { cam: new THREE.Vector3(-2.790, 4.025, -0.030), tgt: new THREE.Vector3(-0.240, -0.060, -0.030), fov: 20.0  },  // pose 1
+    { cam: new THREE.Vector3(-1.300, 2.150, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0 },  // pose 2
+  ]
+  // Prev Pose 1 cam: new THREE.Vector3(-2.100, 1.600, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040)
+  // Prev Pose 2 cam: new THREE.Vector3(-3.155, 2.170, -0.030), tgt: new THREE.Vector3(-0.240, 0.000, -0.030)
+  
 
   let scrollT = 0, smoothT = 0
 
