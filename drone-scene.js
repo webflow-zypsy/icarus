@@ -399,7 +399,7 @@ window.addEventListener("load", () => {
       color:              0xffffff,
       map:                sol.albedo,
       metalness:          0.08,
-      roughness:          0.65,
+      roughness:          1.65,
       roughnessMap:       sol.rough,
       clearcoat:          0.7,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
@@ -515,7 +515,7 @@ window.addEventListener("load", () => {
   // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-  { cam: new THREE.Vector3(-2.000, 1.080, -1.380), tgt: new THREE.Vector3(0.100, -0.205, 0.320), fov: 13.5  },  // pose 0
+  { cam: new THREE.Vector3(-2.000, 1.080, -1.390), tgt: new THREE.Vector3(0.100, -0.205, 0.325), fov: 13.5  },  // pose 0
   { cam: new THREE.Vector3(-2.100, 1.600, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0  },  // pose 1
   { cam: new THREE.Vector3(-1.300, 2.150, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0 },  // pose 2
 ]
