@@ -398,14 +398,14 @@ window.addEventListener("load", () => {
     solarPanel: new THREE.MeshPhysicalMaterial({
       color:              0xffffff,
       map:                sol.albedo,
-      metalness:          0.08,
+      metalness:          1.08,
       roughness:          0.45,
       roughnessMap:       sol.rough,
       clearcoat:          0.7,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
       normalMap:          sol.normal,
       normalScale:        new THREE.Vector2(0.4, 0.4),
-      envMapIntensity:    1.5,
+      envMapIntensity:    0.5,
       side:               THREE.DoubleSide,
     }),
     carbonMatte: new THREE.MeshPhysicalMaterial({
@@ -436,7 +436,7 @@ window.addEventListener("load", () => {
 
   // UV density — texels per world unit. Higher = finer / more zoomed-in texture.
   const CF_DENSITY    = 200.0  // carbon fibre weave — higher = finer/smaller fibres
-  const SOLAR_DENSITY =  50.0  // solar cell grid — higher = more cells visible per wing
+  const SOLAR_DENSITY =  55.0  // solar cell grid — higher = more cells visible per wing
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMERA
@@ -515,7 +515,7 @@ window.addEventListener("load", () => {
   // Scroll: pose 0 (top of page) → pose 1 (mid) → pose 2 (bottom)
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-  { cam: new THREE.Vector3(-2.000, 1.080, -1.390), tgt: new THREE.Vector3(0.100, -0.205, 0.325), fov: 13.5  },  // pose 0
+  { cam: new THREE.Vector3(-2.000, 1.080, -1.400), tgt: new THREE.Vector3(0.100, -0.205, 0.320), fov: 13.5  },  // pose 0
   { cam: new THREE.Vector3(-2.100, 1.600, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0  },  // pose 1
   { cam: new THREE.Vector3(-1.300, 2.150, -0.045), tgt: new THREE.Vector3(-0.250, -0.100, -0.040), fov: 20.0 },  // pose 2
 ]
