@@ -399,7 +399,7 @@ window.addEventListener("load", () => {
       color:              0xffffff,
       map:                sol.albedo,
       metalness:          0.02,
-      roughness:          0.45,
+      roughness:          0.15,
       roughnessMap:       sol.rough,
       clearcoat:          0.7,          // tempered glass over-coating
       clearcoatRoughness: 0.05,
