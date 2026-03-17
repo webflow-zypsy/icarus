@@ -28,7 +28,7 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
 // The scene is skipped entirely on viewports narrower than 1024 px.
 // If the user resizes into a desktop viewport after load, a full page reload
 // is required (Three.js scenes cannot be hot-initialised mid-session).
-const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)")
+const DESKTOP_MQ = window.matchMedia("(min-width: 992px)")
 if (!DESKTOP_MQ.matches) {
   console.info("[drone-scene] Skipped — non-desktop viewport.")
 } else {
@@ -730,4 +730,4 @@ window.addEventListener("load", () => {
   animate()
 })
 
-} // end desktop-only guard
+}
