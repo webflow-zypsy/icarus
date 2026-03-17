@@ -36,6 +36,24 @@ window.addEventListener("load", () => {
   }
   gsap.registerPlugin(ScrollTrigger)
 
+  // ─── Lazy init: scene boots only when #scenes-track top is within
+  // 120% of the viewport height (just below the fold).
+  const trackEl = document.getElementById("scenes-track")
+  if (!trackEl) { console.error("[bg-scene] #scenes-track not found."); return }
+
+  const lazyObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) {
+        lazyObserver.disconnect()
+        initScene()
+      }
+    },
+    { rootMargin: "0px 0px 20% 0px", threshold: 0 }
+  )
+  lazyObserver.observe(trackEl)
+
+  function initScene() {
+
   const mountEl = document.getElementById("scene-background")
   if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
 
@@ -255,6 +273,8 @@ window.addEventListener("load", () => {
     renderer.render(scene, camera)
   }
   requestAnimationFrame(animate)
-})
 
-}
+  } // end initScene()
+}) // end window load
+
+} // end desktop guard
