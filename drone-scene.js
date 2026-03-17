@@ -24,7 +24,19 @@ import { RGBELoader } from "three/addons/loaders/RGBELoader.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
 
+// ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
+// The scene is skipped entirely on viewports narrower than 1024 px.
+// If the user resizes into a desktop viewport after load, a full page reload
+// is required (Three.js scenes cannot be hot-initialised mid-session).
+const DESKTOP_MQ = window.matchMedia("(min-width: 1024px)")
+if (!DESKTOP_MQ.matches) {
+  console.info("[drone-scene] Skipped — non-desktop viewport.")
+} else {
+
 window.addEventListener("load", () => {
+  if (!window.matchMedia("(min-width: 992px)").matches) {
+    console.info("[drone-scene] Skipped — non-desktop viewport."); return
+  }
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
     console.error("[drone-scene] GSAP / ScrollTrigger not found."); return
   }
@@ -717,3 +729,5 @@ window.addEventListener("load", () => {
   }
   animate()
 })
+
+} // end desktop-only guard
