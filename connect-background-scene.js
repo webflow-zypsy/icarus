@@ -20,7 +20,7 @@
 // ASSET URL
 // ═══════════════════════════════════════════════════════════════════════════════
 const CONNECT_BG_ASSETS = {
-  image: "https://cdn.prod.website-files.com/69b42208e2297136fbc4e672/69b99f34243a447194ff8b29_vienna-mountains.webp",
+  image: "https://webflow-zypsy.github.io/icarus/vienna-mountains.webp",
 }
 
 // ─── Loop config ──────────────────────────────────────────────────────────────
