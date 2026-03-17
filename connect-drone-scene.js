@@ -415,10 +415,10 @@ window.addEventListener("load", () => {
   new RGBELoader().load(CONNECT_DRONE_ASSETS.hdr, tex => {
     tex.mapping    = THREE.EquirectangularReflectionMapping
     scene.environment = pmrem.fromEquirectangular(tex).texture
-    // Rotated ~90° in Y from scene 1 so lighting hits from a different angle
+    // From drone-about-v6 — tuned for the elevated behind-and-above angle
     scene.environmentRotation = new THREE.Euler(
-      -840  * Math.PI / 180,
-      2160  * Math.PI / 180,
+      -1070 * Math.PI / 180,
+      1960  * Math.PI / 180,
       0
     )
     tex.dispose()
@@ -426,19 +426,23 @@ window.addEventListener("load", () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SCROLL-DRIVEN CAMERA POSES
-  // Different to scene 1: starts from a high, slightly behind-and-above angle
-  // (telephoto looking down at the top face of the drone, showing solar wings)
-  // then pulls back and rotates to show the full top-down profile.
+  // Derived from drone-about-v6 camera positions, scaled from that scene's
+  // ~22-unit model (1.4 * extraScale 16) down to our 1.4-unit model (÷16).
   //
-  // Model is normalised to 1.4 world units, centred at origin, rotated -90° X.
+  // drone-about-v6 pose 0: cam (19.28, 16.29, 25.20) → ÷16 = (1.205, 1.018, 1.575)
+  // drone-about-v6 pose 1: cam (24.92, 12.85, 22.04) → ÷16 = (1.558, 0.803, 1.378)
+  // tgt in that scene: (0.6, 0.98, 0) → ÷16 = (0.038, 0.061, 0)
+  //
+  // Elevated, behind-and-above angle — camera looks down onto the top face
+  // of the drone, showing solar wings and fuselage from a high oblique view.
   // ═══════════════════════════════════════════════════════════════════════════
   const poses = [
-    // Pose 0 — high telephoto, slightly to the right and behind, looking at top of drone
-    { cam: new THREE.Vector3( 1.80, 2.40, -2.60), tgt: new THREE.Vector3(0.0,  0.10, 0.0), fov: 13.0 },
-    // Pose 1 — pull back and left, slightly lower, broader view of the wingspan
-    { cam: new THREE.Vector3(-2.40, 3.20, -1.60), tgt: new THREE.Vector3(0.0,  0.05, 0.0), fov: 11.5 },
-    // Pose 2 — almost directly above, telephoto, full top-down wing silhouette
-    { cam: new THREE.Vector3(-1.20, 4.60,  0.40), tgt: new THREE.Vector3(0.0, -0.10, 0.0), fov: 10.0 },
+    // Pose 0 — elevated behind-and-above, matching drone-about-v6 start angle
+    { cam: new THREE.Vector3(1.205, 1.018, 1.575), tgt: new THREE.Vector3(0.038, 0.061, 0.0), fov: 13.5 },
+    // Pose 1 — sweeps right and slightly lower, solar wings open wider
+    { cam: new THREE.Vector3(1.558, 0.803, 1.378), tgt: new THREE.Vector3(0.038, 0.061, 0.0), fov: 12.0 },
+    // Pose 2 — higher and more centred, compresses into near-top-down
+    { cam: new THREE.Vector3(0.800, 1.400, 0.800), tgt: new THREE.Vector3(0.000, 0.000, 0.0), fov: 10.5 },
   ]
 
   let scrollT = 0, smoothT = 0
@@ -606,8 +610,8 @@ window.addEventListener("load", () => {
 
     // Slowly rotate env light with scroll
     if (scene.environmentRotation) {
-      const startY = 2160 * Math.PI / 180
-      const endY   = 2175 * Math.PI / 180
+      const startY = 1960 * Math.PI / 180
+      const endY   = 1975 * Math.PI / 180
       scene.environmentRotation.y = startY + sp * (endY - startY)
     }
 
