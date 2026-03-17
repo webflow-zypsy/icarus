@@ -310,6 +310,9 @@ window.addEventListener("load", () => {
   const mountEl = document.getElementById("connect-drone")
   if (!mountEl) { console.error("[connect-scene] #connect-drone not found."); return }
 
+  const initW = mountEl.clientWidth  || window.innerWidth
+  const initH = mountEl.clientHeight || window.innerHeight
+
   const clock = new THREE.Clock()
 
   // ═══════════════════════════════════════════════════════════════════════════
