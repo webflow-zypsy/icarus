@@ -305,6 +305,7 @@ window.addEventListener("load", () => {
 
     function initConnectScene() {
 
+  const easeOut = t => 1 - Math.pow(1 - t, 3)
 
   // Mount into #connect-drone (z-index 2 — sits above #connect-background)
   const mountEl = document.getElementById("connect-drone")
