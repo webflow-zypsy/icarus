@@ -1,130 +1,127 @@
 /**
  * connect-background-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
- * Mounts the background sky scene into #connect-background.
- * Scroll driven by GSAP ScrollTrigger on #connect-track.
+ * Combines drone-about-v6.js + background.js into a single two-pass renderer,
+ * mounted into #connect-drone (drone canvas, z-index 2).
+ * #connect-background is left empty — the sky renders into the same canvas
+ * as pass 1, exactly matching how drone-about-v6 works internally.
  *
- * Sky sphere shader, FOV, uCenterDir, and skyCamera position are taken
- * directly from drone-about-v6.js so the background matches that scene exactly.
+ * Two-pass render (identical to drone-about-v6):
+ *   Pass 1: skyScene + skyCamera  → background sphere
+ *   Pass 2: scene + camera        → drone + clouds (autoClear = false)
  *
- * Key difference from scene 1 (background-scene.js):
- *   - DOME_H_FOV = 42° (telephoto crop, not 183° wide dome)
- *   - uCenterDir = (-0.621, -0.343, -0.705) — v6's exact tuned value
- *   - skyCamera quaternion syncs with the drone camera each frame so the
- *     background pans naturally as the drone camera moves
- *   - Intro uses same topo wireframe → sky fade sequence as scene 1
+ * All values taken verbatim from source files, scaled ÷8 where needed.
+ * Scale factor: drone-about-v6 uses extraScale:16 × droneScale:0.5 = 8×
+ * our 1.4-unit model. Camera/offset positions ÷8. Cloud positions ÷8.
+ * background.js values used as-is (camera-space, not world-space).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const CONNECT_BG_ASSETS = {
-  image: "https://webflow-zypsy.github.io/icarus/vienna-mountains.webp",
+const ASSETS = {
+  hdr:    "https://webflow-zypsy.github.io/icarus/green-512.hdr",
+  model:  "https://webflow-zypsy.github.io/icarus/apollo-draco.glb",
+  bg:     "https://webflow-zypsy.github.io/icarus/vienna-mountains.webp",
+  cloud1: "https://webflow-zypsy.github.io/icarus/cloud03-7.webp",
+  cloud2: "https://webflow-zypsy.github.io/icarus/cloud03-8.webp",
 }
 
-import * as THREE from "three"
+import * as THREE     from "three"
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js"
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
 
-const DESKTOP_MQ = window.matchMedia("(min-width: 992px)")
-if (!DESKTOP_MQ.matches) {
-  console.info("[connect-bg] Skipped — non-desktop viewport.")
+// ─── Desktop-only guard ───────────────────────────────────────────────────────
+if (!window.matchMedia("(min-width: 992px)").matches) {
+  console.info("[connect-scene] Skipped — non-desktop viewport.")
 } else {
 
 window.addEventListener("load", () => {
-  if (!window.matchMedia("(min-width: 992px)").matches) { return }
+  if (!window.matchMedia("(min-width: 992px)").matches) return
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
-    console.error("[connect-bg] GSAP / ScrollTrigger not found."); return
+    console.error("[connect-scene] GSAP / ScrollTrigger not found."); return
   }
   gsap.registerPlugin(ScrollTrigger)
 
-  const mountEl = document.getElementById("connect-background")
-  if (!mountEl) { console.error("[connect-bg] #connect-background not found."); return }
+  // Mount into #connect-drone (z-index 2 — sits above #connect-background)
+  const mountEl = document.getElementById("connect-drone")
+  if (!mountEl) { console.error("[connect-scene] #connect-drone not found."); return }
 
-  const easeOut   = t => 1 - Math.pow(1-t, 3)
-  const easeInOut = t => t < 0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2
+  const clock = new THREE.Clock()
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCENE 1: SKY (background pass) — from background.js
+  // ═══════════════════════════════════════════════════════════════════════════
+  const skyScene = new THREE.Scene()
+
+  // background.js sky sphere values — used verbatim
+  const DOME_H_FOV = 183.0 * Math.PI / 180.0  // background.js: 183°
+  const skySphereGeo = new THREE.SphereGeometry(500, 64, 32)
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tImage:       { value: null },
+      uOpacity:     { value: 0.0 },
+      uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) }, // background.js exact
+      uHFov:        { value: DOME_H_FOV },
+      uImageAspect: { value: 16.0 / 9.0 },
+      uHOffset:     { value: 0.0 },
+      uVOffset:     { value: 0.0 },
+    },
+    vertexShader: `
+      varying vec3 vLocalPos;
+      void main(){ vLocalPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+    `,
+    fragmentShader: `
+      uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
+      uniform float uHFov,uImageAspect,uHOffset,uVOffset;
+      varying vec3 vLocalPos;
+      void main(){
+        vec3 dir=normalize(vLocalPos);
+        vec3 fwd=normalize(uCenterDir);
+        vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
+        vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
+        float az=atan(dot(dir,rt),dot(dir,fwd));
+        float el=asin(clamp(dot(dir,up),-1.0,1.0));
+        float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
+        float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
+        float v=0.5+el/(2.0*vv)+uVOffset;
+        if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
+        float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
+        gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+      }
+    `,
+    side: THREE.BackSide, transparent: true, depthWrite: false,
+  })
+  const skySphereMesh = new THREE.Mesh(skySphereGeo, skyMat)
+  skySphereMesh.renderOrder = -1000
+  skyScene.add(skySphereMesh)
+
+  // skyCamera — from drone-about-v6 ÷8
+  // v6: pos(-23.705, 16.498, -19.656) lookAt(0.6, 0.98, 0)
+  // ÷8: pos(-2.963, 2.062, -2.457) lookAt(0.075, 0.123, 0)
+  const initW = mountEl.clientWidth || window.innerWidth
+  const initH = mountEl.clientHeight || window.innerHeight
+  const skyCamera = new THREE.PerspectiveCamera(15, initW/initH, 0.1, 1000)
+  skyCamera.position.set(-2.963, 2.062, -2.457)
+  skyCamera.lookAt(0.075, 0.123, 0)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOPO WIREFRAME — background.js intro animation
+  // ═══════════════════════════════════════════════════════════════════════════
   let skyReady = false
   let topoMesh = null, topoMat = null, topoGeo = null
   const anim = { phase:"waiting", phaseStart:0, gridRevealDuration:1.3, fadeInDuration:0.8 }
+  const easeOut   = t => 1-Math.pow(1-t,3)
+  const easeInOut = t => t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2
+  const _clearColor = new THREE.Color()
 
-  const scene = new THREE.Scene()
-  const initW = mountEl.clientWidth  || window.innerWidth
-  const initH = mountEl.clientHeight || window.innerHeight
-
-  // ── Main background camera — matches v6's skyCamera exactly ÷8 ───────────
-  // v6 skyCamera: pos(-23.705, 16.498, -19.656) lookAt(0.6, 0.98, 0)
-  // ÷8: pos(-2.963, 2.062, -2.457) lookAt(0.075, 0.123, 0)
-  // FOV 15 — same as v6's skyCamera
-  const camera = new THREE.PerspectiveCamera(15, initW/initH, 0.1, 1000)
-  camera.position.set(-2.963, 2.062, -2.457)
-  camera.lookAt(0.075, 0.123, 0)
-
-  // ── Renderer — opaque (this is the background layer) ─────────────────────
-  const renderer = new THREE.WebGLRenderer({ antialias: false })
-  renderer.setSize(initW, initH)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.toneMapping = THREE.NoToneMapping
-  renderer.setClearColor(0xffffff, 1)
-  renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
-  mountEl.appendChild(renderer.domElement)
-
-  // ── Sky sphere — exact values from drone-about-v6 ─────────────────────────
-  // DOME_H_FOV = 42° (v6's exact value — telephoto crop of the mountain image)
-  // uCenterDir = (-0.621, -0.343, -0.705) — v6's tuned center direction
-  const DOME_H_FOV = 42.0 * Math.PI / 180.0
-
-  let skyMesh = null, skyMat = null
-
-  function makeSkyMesh(tex) {
-    const geo = new THREE.SphereGeometry(500, 64, 32)
-    const mat = new THREE.ShaderMaterial({
-      uniforms: {
-        tImage:       { value: tex },
-        uOpacity:     { value: 0.0 },
-        uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) },
-        uHFov:        { value: DOME_H_FOV },
-        uImageAspect: { value: tex ? tex.image.width / tex.image.height : 16/9 },
-        uHOffset:     { value: 0.0 },
-        uVOffset:     { value: 0.0 },
-      },
-      vertexShader: `
-        varying vec3 vLP;
-        void main(){ vLP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
-      `,
-      fragmentShader: `
-        uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
-        uniform float uHFov,uImageAspect,uHOffset,uVOffset;
-        varying vec3 vLP;
-        void main(){
-          vec3 dir=normalize(vLP);
-          vec3 fwd=normalize(uCenterDir);
-          vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
-          vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
-          float az=atan(dot(dir,rt),dot(dir,fwd));
-          float el=asin(clamp(dot(dir,up),-1.0,1.0));
-          float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
-          float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
-          float v=0.5+el/(2.0*vv)+uVOffset;
-          if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
-          float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-          gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
-        }
-      `,
-      side: THREE.BackSide, transparent: true, depthWrite: false,
-    })
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.renderOrder = -1000
-    scene.add(mesh)
-    return { mesh, mat, geo }
-  }
-
-  let skyA = null
-
-  // ── Topo wireframe for intro (same as scene 1) ────────────────────────────
   const GS=180, GSZ=200, GOX=-1.5, GOZ=-1
-  topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS); topoGeo.rotateX(-Math.PI/2)
+  topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS)
+  topoGeo.rotateX(-Math.PI/2)
   topoMat = new THREE.ShaderMaterial({
     uniforms:{
       tSky:{value:null}, uOpacity:{value:0.0}, uDisplacementScale:{value:3.5},
-      uGridMin:{value:new THREE.Vector2(GOX-GSZ/2,GOZ-GSZ/2)},
-      uGridMax:{value:new THREE.Vector2(GOX+GSZ/2,GOZ+GSZ/2)},
+      uGridMin:{value:new THREE.Vector2(GOX-GSZ/2, GOZ-GSZ/2)},
+      uGridMax:{value:new THREE.Vector2(GOX+GSZ/2, GOZ+GSZ/2)},
     },
     vertexShader:`
       uniform sampler2D tSky;uniform float uDisplacementScale;uniform vec2 uGridMin,uGridMax;
@@ -143,112 +140,496 @@ window.addEventListener("load", () => {
     wireframe:true, transparent:true, depthWrite:false,
   })
   topoMesh = new THREE.Mesh(topoGeo, topoMat)
-  topoMesh.position.set(GOX,-1,GOZ)
-  scene.add(topoMesh)
+  topoMesh.position.set(GOX, -1, GOZ)
+  skyScene.add(topoMesh)  // topo lives in skyScene so it renders in pass 1
 
-  // ── Load background image ─────────────────────────────────────────────────
-  new THREE.TextureLoader().load(CONNECT_BG_ASSETS.image, tex => {
-    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
-    tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
-    skyA = makeSkyMesh(tex)
-    topoMat.uniforms.tSky.value = tex
-    skyReady = true
-  }, undefined, err => console.error("[connect-bg] Image load failed:", err))
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCENE 2: DRONE — from drone-about-v6
+  // ═══════════════════════════════════════════════════════════════════════════
+  const scene = new THREE.Scene()
+  let droneObject  = null
+  let droneBasePos = new THREE.Vector3()
+  let droneBaseRot = new THREE.Euler()
 
-  // ── Scroll state — synced with drone scene via same trigger ───────────────
-  let scrollT = 0, smoothT = 0
+  // Bob — from drone-about-v6 bobCfg, bobAmp ÷8
+  const bobCfg = { bobAmp:0.005, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.0075 }
 
-  ScrollTrigger.create({
-    trigger:"#connect-track", start:"top top", end:"bottom top", scrub:1,
-    onUpdate:s=>{ scrollT=s.progress }
+  // Drone offset — v6 values ÷8
+  const droneOffsetPos1 = { x: 0.0625, y:0, z:-0.4375 }
+  const droneOffsetPos2 = { x:-0.3125, y:0, z:-0.5625 }
+  const droneOffset = { x:droneOffsetPos1.x, y:0, z:droneOffsetPos1.z }
+
+  // ── Reveal ────────────────────────────────────────────────────────────────
+  const reveal = {
+    active:false, startTime:0, wireframeDuration:1.3, fadeOutDuration:0.8,
+    maxRadius:1, wireframeClones:[], wireframeMat:null,
+    solidUniforms:{revealRadius:{value:0}},
+    wireUniforms: {revealRadius:{value:0}},
+  }
+
+  function injectRevealShader(mat, uni) {
+    mat.onBeforeCompile = s => {
+      s.uniforms.revealRadius = uni.revealRadius
+      s.vertexShader = s.vertexShader
+        .replace("#include <common>","#include <common>\nvarying vec3 vRevealWorldPos;")
+        .replace("#include <fog_vertex>","#include <fog_vertex>\nvRevealWorldPos=(modelMatrix*vec4(transformed,1.0)).xyz;")
+      s.fragmentShader = s.fragmentShader
+        .replace("#include <clipping_planes_pars_fragment>",
+          "#include <clipping_planes_pars_fragment>\nuniform float revealRadius;\nvarying vec3 vRevealWorldPos;")
+        .replace("vec4 diffuseColor = vec4( diffuse, opacity );",
+          "vec4 diffuseColor=vec4(diffuse,opacity);\n{float d=max(abs(vRevealWorldPos.x),abs(vRevealWorldPos.z));if(d>revealRadius)discard;}\n")
+    }
+    mat.customProgramCacheKey = ()=>"reveal"; mat.needsUpdate = true
+  }
+
+  function createWireClones(meshes, uni) {
+    const mat = new THREE.MeshBasicMaterial({color:0xff7700,wireframe:true,transparent:true,opacity:0.6,depthWrite:false})
+    injectRevealShader(mat, uni); reveal.wireframeMat = mat
+    for (const m of meshes) {
+      const c = new THREE.Mesh(m.geometry, mat)
+      c.position.copy(m.position); c.rotation.copy(m.rotation); c.scale.copy(m.scale); c.renderOrder=-1
+      ;(m.parent||m).add(c); reveal.wireframeClones.push(c)
+    }
+  }
+
+  function cleanupReveal() {
+    for (const c of reveal.wireframeClones) c.parent?.remove(c)
+    reveal.wireframeClones.length=0
+    if (reveal.wireframeMat){reveal.wireframeMat.dispose();reveal.wireframeMat=null}
+    for (const m of [droneMats.solarPanel,droneMats.carbonMatte,droneMats.tailMatte]) {
+      m.onBeforeCompile=()=>{}; m.customProgramCacheKey=()=>""; m.needsUpdate=true
+    }
+    reveal.active=false
+  }
+
+  // ── UV generation ─────────────────────────────────────────────────────────
+  function genUVs(mesh, tpu) {
+    const g=mesh.geometry; if(!g) return
+    const pos=g.attributes.position, nor=g.attributes.normal; if(!pos||!nor) return
+    const uvs=new Float32Array(pos.count*2)
+    mesh.updateMatrixWorld(true)
+    const _v=new THREE.Vector3(),_n=new THREE.Vector3()
+    const nm=new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld)
+    for (let i=0;i<pos.count;i++){
+      _v.set(pos.getX(i),pos.getY(i),pos.getZ(i)).applyMatrix4(mesh.matrixWorld)
+      _n.set(nor.getX(i),nor.getY(i),nor.getZ(i)).applyMatrix3(nm).normalize()
+      const ax=Math.abs(_n.x),ay=Math.abs(_n.y),az=Math.abs(_n.z)
+      let u,v
+      if(ax>=ay&&ax>=az){u=_v.y;v=_v.z}
+      else if(ay>=ax&&ay>=az){u=_v.x;v=_v.z}
+      else{u=_v.x;v=_v.y}
+      uvs[i*2]=u*tpu; uvs[i*2+1]=v*tpu
+    }
+    g.setAttribute("uv",new THREE.BufferAttribute(uvs,2)); g.attributes.uv.needsUpdate=true
+  }
+
+  function mkTex(canvas, colorSpace) {
+    const t=new THREE.CanvasTexture(canvas)
+    t.colorSpace=colorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping
+    t.generateMipmaps=true; t.minFilter=THREE.LinearMipmapLinearFilter
+    t.magFilter=THREE.LinearFilter; t.anisotropy=16; return t
+  }
+
+  // ── Carbon fiber ──────────────────────────────────────────────────────────
+  function makeCF(opts={}) {
+    const sz=512,tc=opts.towCount||32,tp=sz/tc,gap=opts.gap||1
+    const mk=()=>{const c=document.createElement("canvas");c.width=c.height=sz;return{c,ctx:c.getContext("2d")}}
+    const{c:aC,ctx:a}=mk()
+    a.fillStyle="#1a1a1e"; a.fillRect(0,0,sz,sz)
+    for(let row=0;row<tc;row++) for(let col=0;col<tc;col++){
+      const x=col*tp,y=row*tp,iw=((col+row)%4)<2
+      const base=iw?120+Math.random()*20:85+Math.random()*20
+      a.fillStyle=iw?`rgb(${base},${base},${base+3})`:`rgb(${base+2},${base},${base})`
+      a.fillRect(x+gap,y+gap,tp-gap*2,tp-gap*2)
+      for(let s=0;s<5;s++){
+        a.strokeStyle=`rgba(255,255,255,${0.03+Math.random()*0.04})`; a.lineWidth=0.8; a.beginPath()
+        if(iw){const sx=x+gap+((tp-gap*2)*(s+0.5))/5;a.moveTo(sx,y+gap);a.lineTo(sx,y+tp-gap)}
+        else{const sy=y+gap+((tp-gap*2)*(s+0.5))/5;a.moveTo(x+gap,sy);a.lineTo(x+tp-gap,sy)}
+        a.stroke()
+      }
+    }
+    const{c:rC,ctx:r}=mk(),br=90
+    r.fillStyle=`rgb(${br},${br},${br})`; r.fillRect(0,0,sz,sz)
+    for(let row=0;row<tc;row++) for(let col=0;col<tc;col++){
+      const x=col*tp,y=row*tp,iw=((col+row)%4)<2
+      const v=iw?br-6+Math.random()*4:br+2+Math.random()*6
+      r.fillStyle=`rgb(${v},${v},${v})`; r.fillRect(x+gap,y+gap,tp-gap*2,tp-gap*2)
+      const gv=br+30; r.fillStyle=`rgb(${gv},${gv},${gv})`; r.fillRect(x,y,tp,gap); r.fillRect(x,y,gap,tp)
+    }
+    const{c:nC,ctx:n}=mk()
+    n.fillStyle="rgb(128,128,255)"; n.fillRect(0,0,sz,sz)
+    for(let row=0;row<tc;row++) for(let col=0;col<tc;col++){
+      const x=col*tp,y=row*tp,iw=((col+row)%4)<2
+      if(iw){
+        const hw=(tp-gap*2)/2
+        n.fillStyle="rgba(110,128,255,0.45)";n.fillRect(x+gap,y+gap,hw,tp-gap*2)
+        n.fillStyle="rgba(146,128,255,0.45)";n.fillRect(x+gap+hw,y+gap,hw,tp-gap*2)
+        n.fillStyle="rgba(128,115,255,0.3)";n.fillRect(x+gap,y+gap,tp-gap*2,2)
+        n.fillStyle="rgba(128,141,255,0.3)";n.fillRect(x+gap,y+tp-gap-2,tp-gap*2,2)
+      } else {
+        const hh=(tp-gap*2)/2
+        n.fillStyle="rgba(128,110,255,0.45)";n.fillRect(x+gap,y+gap,tp-gap*2,hh)
+        n.fillStyle="rgba(128,146,255,0.45)";n.fillRect(x+gap,y+gap+hh,tp-gap*2,hh)
+        n.fillStyle="rgba(115,128,255,0.3)";n.fillRect(x+gap,y+gap,2,tp-gap*2)
+        n.fillStyle="rgba(141,128,255,0.3)";n.fillRect(x+tp-gap-2,y+gap,2,tp-gap*2)
+      }
+    }
+    for(let row=0;row<tc;row++) for(let col=0;col<tc;col++){
+      const x=col*tp,y=row*tp
+      n.fillStyle="rgba(128,108,240,0.5)";n.fillRect(x,y,tp,gap+1)
+      n.fillStyle="rgba(108,128,240,0.5)";n.fillRect(x,y,gap+1,tp)
+    }
+    return{albedo:mkTex(aC,THREE.SRGBColorSpace),rough:mkTex(rC,THREE.NoColorSpace),normal:mkTex(nC,THREE.NoColorSpace)}
+  }
+
+  // ── Solar panel ───────────────────────────────────────────────────────────
+  function makeSolar(opts={}) {
+    const sz=512,cc=opts.cellCols||4,cr=opts.cellRows||6
+    const cg=opts.cellGap||10,bbc=opts.busBarCount||5,fs=opts.fingerSpacing||4
+    const cw=(sz-(cc+1)*cg)/cc,ch=(sz-(cr+1)*cg)/cr
+    const cx=c=>cg+c*(cw+cg),cy=r=>cg+r*(ch+cg)
+    const mk=()=>{const c=document.createElement("canvas");c.width=c.height=sz;return{c,ctx:c.getContext("2d")}}
+    const{c:aC,ctx:a}=mk()
+    a.fillStyle="#474751"; a.fillRect(0,0,sz,sz)
+    for(let row=0;row<cr;row++) for(let col=0;col<cc;col++){
+      const x=cx(col),y=cy(row),rv=Math.random()*4-2
+      a.fillStyle=`rgb(${6+rv},${8+rv},${18+rv})`; a.fillRect(x,y,cw,ch)
+      a.strokeStyle="rgba(30,50,100,0.5)";a.lineWidth=2;a.strokeRect(x+1,y+1,cw-2,ch-2)
+      const grad=a.createLinearGradient(x,y,x+cw,y+ch)
+      grad.addColorStop(0,"rgba(40,50,90,0.08)");grad.addColorStop(1,"rgba(20,25,50,0.08)")
+      a.fillStyle=grad;a.fillRect(x,y,cw,ch)
+      for(let b=0;b<bbc;b++){
+        const by=y+ch*(b+1)/(bbc+1)
+        a.strokeStyle="rgba(50,50,58,0.95)";a.lineWidth=1.5;a.beginPath();a.moveTo(x,by);a.lineTo(x+cw,by);a.stroke()
+      }
+      a.strokeStyle="rgba(45,45,55,0.50)";a.lineWidth=0.5
+      for(let fx=x+fs;fx<x+cw;fx+=fs){a.beginPath();a.moveTo(fx,y);a.lineTo(fx,y+ch);a.stroke()}
+      for(let b=0;b<bbc;b++){
+        const by=y+ch*(b+1)/(bbc+1)
+        for(let fx=x+fs*3;fx<x+cw;fx+=fs*4){
+          a.save();a.translate(fx,by);a.rotate(Math.PI/4);a.fillStyle="rgba(55,55,65,0.7)";a.fillRect(-1.5,-1.5,3,3);a.restore()
+        }
+      }
+    }
+    const{c:rC,ctx:r}=mk()
+    r.fillStyle="rgb(90,90,90)";r.fillRect(0,0,sz,sz)
+    for(let row=0;row<cr;row++) for(let col=0;col<cc;col++){
+      const x=cx(col),y=cy(row),cv=50+Math.random()*5
+      r.fillStyle=`rgb(${cv},${cv},${cv})`;r.fillRect(x,y,cw,ch)
+      r.strokeStyle="rgb(60,60,60)";r.lineWidth=2;r.strokeRect(x+1,y+1,cw-2,ch-2)
+      for(let b=0;b<bbc;b++){
+        const by=y+ch*(b+1)/(bbc+1)
+        r.strokeStyle="rgb(30,30,30)";r.lineWidth=1.5;r.beginPath();r.moveTo(x,by);r.lineTo(x+cw,by);r.stroke()
+      }
+    }
+    const{c:nC,ctx:n}=mk()
+    n.fillStyle="rgb(128,128,255)";n.fillRect(0,0,sz,sz)
+    for(let row=0;row<cr;row++) for(let col=0;col<cc;col++){
+      const x=cx(col),y=cy(row)
+      n.fillStyle="rgba(118,128,255,0.6)";n.fillRect(x,y,2,ch)
+      n.fillStyle="rgba(138,128,255,0.6)";n.fillRect(x+cw-2,y,2,ch)
+      n.fillStyle="rgba(128,118,255,0.6)";n.fillRect(x,y,cw,2)
+      n.fillStyle="rgba(128,138,255,0.6)";n.fillRect(x,y+ch-2,cw,2)
+      for(let b=0;b<bbc;b++){
+        const by=y+ch*(b+1)/(bbc+1)
+        n.fillStyle="rgba(128,118,255,0.4)";n.fillRect(x,by-1,cw,1)
+        n.fillStyle="rgba(128,138,255,0.4)";n.fillRect(x,by+1,cw,1)
+      }
+    }
+    for(let row=0;row<cr;row++) for(let col=0;col<cc;col++){
+      const x=cx(col),y=cy(row)
+      n.fillStyle="rgba(128,108,240,0.5)";n.fillRect(x-cg,y-cg,cw+cg*2,cg)
+      n.fillStyle="rgba(108,128,240,0.5)";n.fillRect(x-cg,y,cg,ch)
+    }
+    return{albedo:mkTex(aC,THREE.SRGBColorSpace),rough:mkTex(rC,THREE.NoColorSpace),normal:mkTex(nC,THREE.NoColorSpace)}
+  }
+
+  const cf  = makeCF({ glossy:false, towCount:24 })
+  const sol = makeSolar()
+
+  const droneMats = {
+    solarPanel: new THREE.MeshPhysicalMaterial({
+      color:0xffffff,map:sol.albedo,metalness:0.01,roughness:0.02,roughnessMap:sol.rough,
+      clearcoat:0.75,clearcoatRoughness:0.05,normalMap:sol.normal,normalScale:new THREE.Vector2(2.4,2.4),
+      envMapIntensity:0.5,side:THREE.DoubleSide,
+    }),
+    carbonMatte: new THREE.MeshPhysicalMaterial({
+      color:0x6d6d6d,map:cf.albedo,metalness:0.0,roughness:0.92,roughnessMap:cf.rough,
+      clearcoat:0.0,normalMap:cf.normal,normalScale:new THREE.Vector2(0.2,0.2),
+      envMapIntensity:0.25,side:THREE.DoubleSide,
+    }),
+    tailMatte: new THREE.MeshPhysicalMaterial({
+      color:0xc9c9c9,map:cf.albedo,metalness:0.0,roughness:0.92,roughnessMap:cf.rough,
+      clearcoat:0.0,normalMap:cf.normal,normalScale:new THREE.Vector2(0.2,0.2),
+      envMapIntensity:0.25,side:THREE.DoubleSide,
+    }),
+  }
+  const CF_DENSITY=200.0, SOLAR_DENSITY=48.0
+
+  // ── Main camera — drone-about-v6 FOV + initial pose ÷8 ───────────────────
+  const camera = new THREE.PerspectiveCamera(15, initW/initH, 0.1, 1000)
+  const _camTarget = new THREE.Vector3(0.075, 0.123, 0)
+
+  // ── Single combined renderer ──────────────────────────────────────────────
+  const renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setSize(initW, initH)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.outputColorSpace    = THREE.SRGBColorSpace
+  renderer.toneMapping         = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 3.2
+  renderer.setClearColor(0xffffff, 1)  // white during intro; goes black after
+  renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
+  mountEl.appendChild(renderer.domElement)
+
+  // ── Lighting ──────────────────────────────────────────────────────────────
+  scene.add(new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.8))
+
+  // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  pmrem.compileEquirectangularShader()
+  new RGBELoader().load(ASSETS.hdr, tex => {
+    tex.mapping = THREE.EquirectangularReflectionMapping
+    scene.environment = pmrem.fromEquirectangular(tex).texture
+    scene.environmentRotation = new THREE.Euler(-1070*Math.PI/180, 1960*Math.PI/180, 0)
+    tex.dispose()
   })
 
+  // ── Load background image — feed to skyMat + topoMat ─────────────────────
+  new THREE.TextureLoader().load(ASSETS.bg, tex => {
+    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
+    tex.generateMipmaps = false
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+    skyMat.uniforms.tImage.value = tex
+    skyMat.uniforms.uImageAspect.value = tex.image.width / tex.image.height
+    if (topoMat) topoMat.uniforms.tSky.value = tex
+    skyReady = true
+  }, undefined, err => console.error("[connect-scene] BG load failed:", err))
+
+  // ── Cloud parallax — drone-about-v6 values ÷8 ────────────────────────────
+  // v6: cloud03-7 at (-12,-4,-8) scale 28×14, CLOUD_PARALLAX=0.7, CLOUD_EDGE_FADE=0.25
+  // ÷8: (-1.5,-0.5,-1.0) scale 3.5×1.75
+  const CLOUD_PARALLAX  = 0.7
+  const CLOUD_EDGE_FADE = 0.25
+  const cloudGroup  = new THREE.Group()
+  const cloudMeshes = []
+  scene.add(cloudGroup)
+  // v6 cloudCamStart = camera start pos ÷8
+  const cloudCamStart = new THREE.Vector3(2.410, 2.036, 3.150)
+  const _camDelta = new THREE.Vector3()
+
+  const cloudVert=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`
+  const cloudFrag=`
+    uniform sampler2D tCloud;uniform float uOpacity,uEdgeFade;varying vec2 vUv;
+    void main(){
+      vec4 tex=texture2D(tCloud,vUv);
+      float e=smoothstep(0.0,uEdgeFade,vUv.x)*smoothstep(0.0,uEdgeFade,1.0-vUv.x)
+             *smoothstep(0.0,uEdgeFade,vUv.y)*smoothstep(0.0,uEdgeFade,1.0-vUv.y);
+      gl_FragColor=vec4(tex.rgb,tex.a*uOpacity*e);
+    }
+  `
+  function makeCloud(url, x, y, z, sx, sy, opacity) {
+    new THREE.TextureLoader().load(url, tex => {
+      tex.colorSpace = THREE.SRGBColorSpace
+      const mat = new THREE.ShaderMaterial({
+        uniforms:{tCloud:{value:tex},uOpacity:{value:opacity??0.85},uEdgeFade:{value:CLOUD_EDGE_FADE}},
+        vertexShader:cloudVert, fragmentShader:cloudFrag,
+        transparent:true, depthWrite:false, side:THREE.DoubleSide,
+      })
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sx,sy), mat)
+      mesh.position.set(x,y,z); cloudGroup.add(mesh); cloudMeshes.push(mesh)
+    })
+  }
+  makeCloud(ASSETS.cloud1, -1.5, -0.5, -1.0, 3.5, 1.75)        // cloud03-7: bottom-left
+  makeCloud(ASSETS.cloud2,  1.2, -0.3, -0.8, 2.8, 1.4,  0.7)   // cloud03-8: right side
+
+  // ── Camera poses — drone-about-v6 ÷8 ─────────────────────────────────────
+  // v6 pose 0: cam(19.28,16.29,25.20) tgt(0.6,0.98,0)  ÷8 = cam(2.410,2.036,3.150) tgt(0.075,0.123,0)
+  // v6 pose 1: cam(24.92,12.85,22.04) tgt(0.6,0.98,0)  ÷8 = cam(3.115,1.606,2.755) tgt(0.075,0.123,0)
+  const poses = [
+    { cam: new THREE.Vector3(2.410, 2.036, 3.150), tgt: new THREE.Vector3(0.075, 0.123, 0) },
+    { cam: new THREE.Vector3(3.115, 1.606, 2.755), tgt: new THREE.Vector3(0.075, 0.123, 0) },
+  ]
+  let scrollT=0, smoothT=0
+  const _posePos=new THREE.Vector3(), _poseTgt=new THREE.Vector3()
+
+  // Init camera at pose 0
+  camera.position.copy(poses[0].cam)
+  camera.lookAt(_camTarget)
+
+  function applyPose(t) {
+    const cl=Math.max(0,Math.min(1,t)),seg=poses.length-1,sc=cl*seg
+    const i=Math.min(Math.floor(sc),seg-1),f=sc-i
+    _posePos.copy(poses[i].cam).lerp(poses[i+1].cam,f)
+    _poseTgt.copy(poses[i].tgt).lerp(poses[i+1].tgt,f)
+    camera.position.lerp(_posePos, 0.1)
+    _camTarget.lerp(_poseTgt, 0.1)
+    camera.lookAt(_camTarget)
+    // FOV: 15 → 12.75 over full scroll (v6: targetFov = 15*(1-0.15*smoothT))
+    const targetFov = 15*(1-0.15*t)
+    camera.fov += (targetFov-camera.fov)*0.1
+    camera.updateProjectionMatrix()
+  }
+
+  // ── Model load ────────────────────────────────────────────────────────────
+  const draco = new DRACOLoader()
+  draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/")
+  const gltfLoader = new GLTFLoader()
+  gltfLoader.setDRACOLoader(draco)
+
+  gltfLoader.load(ASSETS.model, g => {
+    const obj=g.scene
+    obj.position.set(0,0,0); obj.rotation.set(0,0,0)
+    const box=new THREE.Box3().setFromObject(obj),bsz=new THREE.Vector3(),bctr=new THREE.Vector3()
+    box.getSize(bsz); box.getCenter(bctr)
+    const md=Math.max(bsz.x,bsz.y,bsz.z)
+    if(isFinite(md)&&md>0){const s=1.4/md;obj.scale.setScalar(s);obj.position.sub(bctr.multiplyScalar(s))}
+    obj.rotation.set(-Math.PI/2,0,0)
+    droneBasePos.copy(obj.position); droneBaseRot.copy(obj.rotation)
+    obj.updateMatrixWorld(true)
+
+    const meshes=[]
+    obj.traverse(c=>{if(c.isMesh)meshes.push(c)})
+    for(const m of meshes){if(m.geometry&&!m.geometry.attributes.normal)m.geometry.computeVertexNormals();m.material=droneMats.carbonMatte}
+
+    const wingNames=new Set(["mesh73","mesh100","mesh76","mesh103"])
+    let assigned=0
+    for(const m of meshes){if(wingNames.has(m.name)){m.material=droneMats.solarPanel;assigned++}}
+    if(assigned===0){
+      const scored=meshes.map(m=>{
+        const b=new THREE.Box3().setFromObject(m),s=new THREE.Vector3(),ct=new THREE.Vector3()
+        b.getSize(s);b.getCenter(ct)
+        return{m,score:s.x*s.z*(1/(s.y/Math.max(s.x,s.z,1e-6)+0.02))*(0.6+Math.abs(ct.x))}
+      }).sort((a,b)=>b.score-a.score)
+      for(let i=0;i<Math.min(4,scored.length);i++)scored[i].m.material=droneMats.solarPanel
+    }
+    scene.add(obj); obj.updateMatrixWorld(true)
+    for(const m of meshes)genUVs(m,m.material===droneMats.solarPanel?SOLAR_DENSITY:CF_DENSITY)
+
+    const tailNames=new Set(["mesh159","mesh160","mesh161","mesh162","mesh163","mesh164","mesh165","mesh166","mesh167","mesh168","mesh169","mesh170","mesh171","mesh172","mesh173","mesh174","mesh175","mesh176","mesh177","mesh178","mesh179","mesh180","mesh181","mesh182","mesh183","mesh184"])
+    for(const m of meshes){if(tailNames.has(m.name))m.material=droneMats.tailMatte}
+
+    droneObject=obj
+    const rb=new THREE.Box3().setFromObject(obj)
+    reveal.maxRadius=(Math.max(Math.abs(rb.min.x),Math.abs(rb.max.x),Math.abs(rb.min.z),Math.abs(rb.max.z))||9)*1.05
+    injectRevealShader(droneMats.solarPanel,reveal.solidUniforms)
+    injectRevealShader(droneMats.carbonMatte,reveal.solidUniforms)
+    injectRevealShader(droneMats.tailMatte,reveal.solidUniforms)
+    createWireClones(meshes,reveal.wireUniforms)
+    reveal.solidUniforms.revealRadius.value=0; reveal.wireUniforms.revealRadius.value=0
+    reveal.startTime=clock.elapsedTime; reveal.active=true
+  })
+
+  // ── ScrollTrigger ─────────────────────────────────────────────────────────
+  ScrollTrigger.create({
+    trigger:"#connect-track", start:"top top", end:"bottom bottom", scrub:1,
+    onUpdate:s=>{scrollT=s.progress},
+  })
+
+  // ── Resize ────────────────────────────────────────────────────────────────
   new ResizeObserver(()=>{
-    const w=mountEl.clientWidth||window.innerWidth,h=mountEl.clientHeight||window.innerHeight
+    const w=mountEl.clientWidth||window.innerWidth, h=mountEl.clientHeight||window.innerHeight
     camera.aspect=w/h; camera.updateProjectionMatrix()
+    skyCamera.aspect=w/h; skyCamera.updateProjectionMatrix()
     renderer.setSize(w,h); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
   }).observe(mountEl)
 
-  // ── Loop state ────────────────────────────────────────────────────────────
-  let cycleStart = 0
-  const _cc = new THREE.Color()
-
-  // ── Expose camera so drone scene can sync sky quaternion ──────────────────
-  // The drone scene's camera quaternion is copied to this camera each frame
-  // in drone-about-v6 style (skyCamera.quaternion.copy(camera.quaternion)).
-  // We achieve the same by storing our camera on window so the drone scene
-  // can find it, OR simply let this scene handle its own gentle pan.
-  // Since these are two independent modules we implement a soft self-driven
-  // pan that mirrors the camera movement direction implied by the drone poses.
-  // The background pans left→right as scroll goes 0→1, matching v6 behaviour.
-
-  // v6 skyCamera stays at its fixed position and only its quaternion rotates
-  // with the main camera. We replicate that by keeping our camera at its
-  // fixed position and applying a yaw that mirrors the drone camera's
-  // movement arc (pose 0 → pose 1: camera sweeps right and slightly lower).
-  // Yaw range derived from the angle between pose 0 and pose 1 projected
-  // onto the XZ plane.
-  const YAW_START =  0.0
-  const YAW_END   = -0.12  // radians — matches the rightward pan of drone cam
-
-  let lastTime = 0
+  // ── Render loop ───────────────────────────────────────────────────────────
+  let lastTime=0
   function animate(now) {
     requestAnimationFrame(animate)
-    const dt = Math.min((now-lastTime)/1000, 0.05); lastTime = now
-    const ns = now/1000
+    const dt=Math.min((now-lastTime)/1000,0.05); lastTime=now
+    const ns=now/1000
+    clock.getDelta()
+    const t=clock.elapsedTime
 
-    smoothT += (scrollT-smoothT)*(1-Math.exp(-18*dt))
+    smoothT+=(scrollT-smoothT)*0.08
     if(Math.abs(scrollT-smoothT)<0.0001)smoothT=scrollT
 
-    // Keep sky sphere centred on camera
-    if(skyA) skyA.mesh.position.copy(camera.position)
+    applyPose(smoothT)
 
-    // Apply scroll-driven yaw to background camera to match drone cam movement
-    // Reset camera orientation then apply yaw
-    camera.position.set(-2.963, 2.062, -2.457)
-    const yaw = YAW_START + (YAW_END-YAW_START)*smoothT
-    camera.lookAt(
-      0.075 + Math.sin(yaw)*5,
-      0.123,
-      -5 + Math.cos(yaw)*5
-    )
+    // Sync sky camera orientation with main camera — drone-about-v6 exact line:
+    // skyCamera.quaternion.copy(camera.quaternion)
+    skyCamera.quaternion.copy(camera.quaternion)
 
-    // ── Intro reveal ────────────────────────────────────────────────────────
+    // Keep sky sphere centred on sky camera
+    skySphereMesh.position.copy(skyCamera.position)
+
+    // Cloud parallax — drone-about-v6 exact logic
+    _camDelta.copy(camera.position).sub(cloudCamStart).multiplyScalar(CLOUD_PARALLAX)
+    cloudGroup.position.copy(_camDelta)
+    cloudGroup.scale.setScalar(camera.fov/15)
+    for(const cm of cloudMeshes)cm.lookAt(camera.position)
+
+    // Drone bob + scroll offset
+    if(droneObject){
+      droneOffset.x=droneOffsetPos1.x+(droneOffsetPos2.x-droneOffsetPos1.x)*smoothT
+      droneOffset.z=droneOffsetPos1.z+(droneOffsetPos2.z-droneOffsetPos1.z)*smoothT
+      const bob=Math.sin(t*(2*Math.PI)/bobCfg.bobPeriod)
+      const stallWave=Math.cos(t*(2*Math.PI)/bobCfg.stallPeriod)
+      const stall=1.0-bobCfg.stallDepth*stallWave*stallWave
+      droneObject.position.set(
+        droneBasePos.x+droneOffset.x,
+        droneBasePos.y+droneOffset.y+bob*bobCfg.bobAmp*stall,
+        droneBasePos.z+droneOffset.z
+      )
+      droneObject.rotation.set(
+        droneBaseRot.x+Math.cos(t*(2*Math.PI)/bobCfg.bobPeriod)*stall*bobCfg.pitchAmp,
+        droneBaseRot.y, droneBaseRot.z
+      )
+    }
+
+    // Reveal
+    if(reveal.active){
+      const el=t-reveal.startTime
+      const wl=Math.min(el/reveal.wireframeDuration,1)
+      reveal.wireUniforms.revealRadius.value=easeOut(wl)*reveal.maxRadius
+      reveal.solidUniforms.revealRadius.value=0
+      if(wl>=1){
+        const fl=Math.min((el-reveal.wireframeDuration)/reveal.fadeOutDuration,1)
+        reveal.solidUniforms.revealRadius.value=easeOut(fl)*reveal.maxRadius*1.05
+        if(reveal.wireframeMat)reveal.wireframeMat.opacity=0.6*(1-easeOut(fl))
+        if(fl>=1)cleanupReveal()
+      }
+    }
+
+    // ── Background intro state machine (from background.js) ────────────────
     if(anim.phase==="waiting"&&skyReady){anim.phase="gridReveal";anim.phaseStart=ns}
 
     if(anim.phase==="gridReveal"){
-      const t=Math.min((ns-anim.phaseStart)/anim.gridRevealDuration,1)
-      topoMat.uniforms.uOpacity.value=easeInOut(t)*0.45
-      if(t>=1){anim.phase="fadeIn";anim.phaseStart=ns}
+      const elapsed=ns-anim.phaseStart
+      const tt=Math.min(elapsed/anim.gridRevealDuration,1)
+      if(topoMat)topoMat.uniforms.uOpacity.value=easeInOut(tt)*0.45
+      if(tt>=1){anim.phase="fadeIn";anim.phaseStart=ns}
 
     } else if(anim.phase==="fadeIn"){
-      const t=Math.min((ns-anim.phaseStart)/anim.fadeInDuration,1),e=easeOut(t)
-      if(skyA)skyA.mat.uniforms.uOpacity.value=e
-      if(topoMat)topoMat.uniforms.uOpacity.value=0.45*(1-e)
-      const wb=1-e; renderer.setClearColor(_cc.setRGB(wb,wb,wb),1)
-      if(t>=1){
-        anim.phase="running"; cycleStart=ns
-        if(skyA)skyA.mat.uniforms.uOpacity.value=1.0
+      const elapsed=ns-anim.phaseStart
+      const tt=Math.min(elapsed/anim.fadeInDuration,1),ee=easeOut(tt)
+      skyMat.uniforms.uOpacity.value=ee
+      if(topoMat)topoMat.uniforms.uOpacity.value=0.45*(1-ee)
+      const wb=1-ee; renderer.setClearColor(_clearColor.setRGB(wb,wb,wb),1)
+      if(tt>=1){
+        anim.phase="done"
+        skyMat.uniforms.uOpacity.value=1.0
         renderer.setClearColor(0x000000,1)
-        if(topoMesh){
-          scene.remove(topoMesh);topoGeo.dispose();topoMat.dispose()
-          topoMesh=topoGeo=topoMat=null
-        }
+        if(topoMesh){skyScene.remove(topoMesh);topoGeo.dispose();topoMat.dispose();topoMesh=topoGeo=topoMat=null}
       }
 
-    } else if(anim.phase==="running"&&skyA){
-      // Gentle ping-pong pan — same LOOP period as scene 1 (45s)
-      // Amplitude kept small (0.02) because 42° FOV amplifies movement a lot
-      const period = 45.0
-      const totalT = ns-cycleStart
-      const halfN  = Math.floor(totalT/period)
-      const phase  = (totalT%period)/period
-      const frac   = (halfN%2===0)?phase:1.0-phase
-      skyA.mat.uniforms.uHOffset.value = frac*0.02
-      skyA.mat.uniforms.uVOffset.value = -frac*0.05
+    } else if(anim.phase==="done"){
+      // background.js drift: hAmount = 0.06*(1-min(smoothT/0.3,1)), period 40s
+      const DRIFT_PERIOD=40.0
+      const driftT=(ns%DRIFT_PERIOD)/DRIFT_PERIOD
+      const hAmount=0.06*(1.0-Math.min(smoothT/0.3,1.0))
+      skyMat.uniforms.uHOffset.value=driftT*hAmount
+      skyMat.uniforms.uVOffset.value=-driftT*0.10
     }
 
-    renderer.render(scene, camera)
+    // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
+    renderer.domElement.style.filter=""
+    renderer.autoClear=true
+    renderer.render(skyScene, skyCamera)   // pass 1: sky background
+    renderer.autoClear=false
+    renderer.render(scene, camera)          // pass 2: drone + clouds (no clear)
+    renderer.autoClear=true
   }
   requestAnimationFrame(animate)
 })
