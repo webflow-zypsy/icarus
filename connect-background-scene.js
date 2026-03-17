@@ -1,21 +1,24 @@
 /**
- * connect-scene.js  —  ES Module
+ * connect-background-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
- * Combines drone-about-v6.js + background.js into a single two-pass renderer,
- * mounted into #connect-drone (drone canvas, z-index 2).
- * #connect-background is left empty — the sky renders into the same canvas
- * as pass 1, exactly matching how drone-about-v6 works internally.
+ * Single file for both background scenes:
  *
- * Two-pass render (identical to drone-about-v6):
- *   Pass 1: skyScene + skyCamera  → background sphere
- *   Pass 2: scene + camera        → drone + clouds (autoClear = false)
+ *   Scene 1 — Hero (#scene-background, #scenes-track)
+ *     Wide sky dome (183°) with topo wireframe intro + ping-pong drift.
+ *     Lazy-inits when #scenes-track enters 120% of viewport height.
  *
- * All values taken verbatim from source files, scaled ÷8 where needed.
- * Scale factor: drone-about-v6 uses extraScale:16 × droneScale:0.5 = 8×
- * our 1.4-unit model. Camera/offset positions ÷8. Cloud positions ÷8.
- * background.js values used as-is (camera-space, not world-space).
+ *   Scene 2 — Connect (#connect-drone, #connect-track)
+ *     Two-pass renderer: sky sphere (42° FOV, vienna-mountains) + drone + clouds.
+ *     No intro. Lazy-inits when #connect-track enters 120% of viewport height.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+
+// ─── ASSETS ───────────────────────────────────────────────────────────────────
+const BG_ASSETS = {
+  image: "https://webflow-zypsy.github.io/icarus/background-v2.webp",
+}
+
+const LOOP = { period: 45.0 }
 
 const ASSETS = {
   hdr:    "https://webflow-zypsy.github.io/icarus/green-512.hdr",
@@ -32,15 +35,276 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
 
 // ─── Desktop-only guard ───────────────────────────────────────────────────────
 if (!window.matchMedia("(min-width: 992px)").matches) {
-  console.info("[connect-scene] Skipped — non-desktop viewport.")
+  console.info("[scenes] Skipped — non-desktop viewport.")
 } else {
 
 window.addEventListener("load", () => {
   if (!window.matchMedia("(min-width: 992px)").matches) return
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
-    console.error("[connect-scene] GSAP / ScrollTrigger not found."); return
+    console.error("[scenes] GSAP / ScrollTrigger not found."); return
   }
   gsap.registerPlugin(ScrollTrigger)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCENE 1 — Hero background (#scene-background)
+  // Lazy-inits when #scenes-track top reaches 120% of viewport height.
+  // ═══════════════════════════════════════════════════════════════════════════
+  ;(function () {
+    const trackEl = document.getElementById("scenes-track")
+    if (!trackEl) { console.error("[scenes] #scenes-track not found."); return }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) { obs.disconnect(); initHeroBackground() }
+      },
+      { rootMargin: "0px 0px 20% 0px", threshold: 0 }
+    )
+    obs.observe(trackEl)
+
+    function initHeroBackground() {
+
+
+  const mountEl = document.getElementById("scene-background")
+  if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
+
+  const easeOut   = t => 1 - Math.pow(1-t, 3)
+  const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2
+
+  let skyReady = false, loadedTexture = null
+  let topoMesh = null, topoMat = null, topoGeo = null
+  const anim = { phase: "waiting", phaseStart: 0, gridRevealDuration: 1.3, fadeInDuration: 0.8 }
+
+  const scene  = new THREE.Scene()
+  const initW  = mountEl.clientWidth  || window.innerWidth
+  const initH  = mountEl.clientHeight || window.innerHeight
+  const camera = new THREE.PerspectiveCamera(70, initW/initH, 0.1, 1000)
+
+  const renderer = new THREE.WebGLRenderer({ antialias: false })
+  renderer.setSize(initW, initH)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.toneMapping = THREE.NoToneMapping
+  renderer.setClearColor(0xffffff, 1)
+  renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
+  mountEl.appendChild(renderer.domElement)
+
+  // ── Sky mesh factory ──────────────────────────────────────────────────────────
+  // Creates an independent sky sphere with its own material + uniforms.
+  const DOME_H_FOV = 183.0 * Math.PI / 180.0
+
+  function makeSkyMesh(tex) {
+    const geo = new THREE.SphereGeometry(500, 64, 32)
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        tImage:       { value: tex },
+        uOpacity:     { value: 0.0 },
+        uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) },
+        uHFov:        { value: DOME_H_FOV },
+        uImageAspect: { value: tex ? tex.image.width / tex.image.height : 16/9 },
+        uHOffset:     { value: 0.0 },
+        uVOffset:     { value: 0.0 },
+      },
+      vertexShader: `
+        varying vec3 vLP;
+        void main(){ vLP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+      `,
+      fragmentShader: `
+        uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
+        uniform float uHFov,uImageAspect,uHOffset,uVOffset;
+        varying vec3 vLP;
+        void main(){
+          vec3 dir=normalize(vLP);
+          vec3 fwd=normalize(uCenterDir);
+          vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
+          vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
+          float az=atan(dot(dir,rt),dot(dir,fwd));
+          float el=asin(clamp(dot(dir,up),-1.0,1.0));
+          float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
+          float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
+          float v=0.5+el/(2.0*vv)+uVOffset;
+          if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
+          float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
+          gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+        }
+      `,
+      side: THREE.BackSide, transparent: true, depthWrite: false,
+    })
+    const mesh = new THREE.Mesh(geo, mat)
+    mesh.renderOrder = -1000
+    scene.add(mesh)
+    return { mesh, mat, geo }
+  }
+
+  // Disposes geometry + material but NOT the shared texture
+  function destroySkyMesh(sky) {
+    if (!sky) return
+    scene.remove(sky.mesh)
+    sky.geo.dispose()
+    sky.mat.dispose()
+    // sky.mat.uniforms.tImage.value is the shared texture — do NOT dispose it
+  }
+
+  // Single sky instance — ping-pong animation needs only one sphere
+  let skyA = null
+
+  // ── Topo wireframe ────────────────────────────────────────────────────────────
+  const GS=180, GSZ=200, GOX=-1.5, GOZ=-1
+  topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS); topoGeo.rotateX(-Math.PI/2)
+  topoMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tSky:               { value: null },
+      uOpacity:           { value: 0.0  },
+      uDisplacementScale: { value: 3.5  },
+      uGridMin:           { value: new THREE.Vector2(GOX-GSZ/2, GOZ-GSZ/2) },
+      uGridMax:           { value: new THREE.Vector2(GOX+GSZ/2, GOZ+GSZ/2) },
+    },
+    vertexShader: `
+      uniform sampler2D tSky; uniform float uDisplacementScale; uniform vec2 uGridMin,uGridMax;
+      varying float vL;
+      void main(){
+        vec3 wp=(modelMatrix*vec4(position,1.0)).xyz;
+        float u=clamp((wp.x-uGridMin.x)/(uGridMax.x-uGridMin.x),0.0,1.0);
+        float v=clamp(1.0-(wp.z-uGridMin.y)/(uGridMax.y-uGridMin.y),0.0,1.0);
+        vec4 ts=texture2D(tSky,vec2(u,v));
+        float lum=clamp(dot(ts.rgb,vec3(0.2126,0.7152,0.0722)),0.0,1.0);
+        vL=lum; wp.y+=lum*uDisplacementScale;
+        gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity; varying float vL;
+      void main(){ gl_FragColor=vec4(vec3(0.82+vL*0.05),uOpacity); }
+    `,
+    wireframe: true, transparent: true, depthWrite: false,
+  })
+  topoMesh = new THREE.Mesh(topoGeo, topoMat)
+  topoMesh.position.set(GOX, -1, GOZ)
+  scene.add(topoMesh)
+
+  // ── Load image ────────────────────────────────────────────────────────────────
+  new THREE.TextureLoader().load(BG_ASSETS.image, tex => {
+    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
+    tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+    loadedTexture = tex
+    skyA = makeSkyMesh(tex)
+    topoMat.uniforms.tSky.value = tex
+    skyReady = true
+  }, undefined, err => console.error("[bg-scene] Image load failed:", err))
+
+  // ── Camera poses ──────────────────────────────────────────────────────────────
+  const poses = [
+    { cam: new THREE.Vector3(-2.822, 1.964, -2.34), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
+    { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
+    { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
+  ]
+  const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
+  let scrollT = 0, smoothT = 0
+
+  function applyPose(t) {
+    const cl=Math.max(0,Math.min(1,t)), seg=poses.length-1, sc=cl*seg
+    const i=Math.min(Math.floor(sc),seg-1), f=sc-i
+    _cp.lerpVectors(poses[i].cam, poses[i+1].cam, f)
+    _ct.lerpVectors(poses[i].tgt, poses[i+1].tgt, f)
+    camera.position.copy(_cp); camera.lookAt(_ct)
+  }
+  applyPose(0)
+
+  ScrollTrigger.create({
+    trigger: "#scenes-track", start: "top top", end: "bottom top", scrub: 1,
+    onUpdate: s => { scrollT = s.progress }
+  })
+
+  new ResizeObserver(() => {
+    const w = mountEl.clientWidth||window.innerWidth, h = mountEl.clientHeight||window.innerHeight
+    camera.aspect = w/h; camera.updateProjectionMatrix()
+    renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  }).observe(mountEl)
+
+  // ── Loop state ────────────────────────────────────────────────────────────────
+  let cycleStart = 0   // absolute time when the current cycle began
+
+  // ── Render loop ───────────────────────────────────────────────────────────────
+  let lastTime = 0
+  function animate(now) {
+    requestAnimationFrame(animate)
+    const dt = Math.min((now - lastTime) / 1000, 0.05); lastTime = now
+    const ns = now / 1000
+
+    // Smooth scroll
+    smoothT += (scrollT - smoothT) * (1 - Math.exp(-18 * dt))
+    if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
+    applyPose(smoothT)
+
+    // Keep sky sphere centred on camera so it never clips
+    if (skyA) skyA.mesh.position.copy(camera.position)
+
+    // ── Intro reveal ────────────────────────────────────────────────────────────
+    if (anim.phase === "waiting" && skyReady) {
+      anim.phase = "gridReveal"; anim.phaseStart = ns
+    }
+
+    if (anim.phase === "gridReveal") {
+      const t = Math.min((ns - anim.phaseStart) / anim.gridRevealDuration, 1)
+      topoMat.uniforms.uOpacity.value = easeInOut(t) * 0.45
+      if (t >= 1) { anim.phase = "fadeIn"; anim.phaseStart = ns }
+
+    } else if (anim.phase === "fadeIn") {
+      const t = Math.min((ns - anim.phaseStart) / anim.fadeInDuration, 1), e = easeOut(t)
+      if (skyA) skyA.mat.uniforms.uOpacity.value = e
+      if (topoMat) topoMat.uniforms.uOpacity.value = 0.45 * (1 - e)
+      const wb = 1 - e; renderer.setClearColor(_cc.setRGB(wb, wb, wb), 1)
+      if (t >= 1) {
+        anim.phase = "running"; cycleStart = ns   // reset cycle clock here so offsets start from 0
+        if (skyA) skyA.mat.uniforms.uOpacity.value = 1.0
+        renderer.setClearColor(0x000000, 1)
+        if (topoMesh) {
+          scene.remove(topoMesh); topoGeo.dispose(); topoMat.dispose()
+          topoMesh = topoGeo = topoMat = null
+        }
+      }
+
+    } else if (anim.phase === "running" && skyA) {
+
+      // ── Ping-pong offset animation ───────────────────────────────────────────
+      // totalT counts up forever. We divide by period to get which half-cycle
+      // we're in: even half = forward (0→1), odd half = reverse (1→0).
+      // This gives a seamless bounce with no hard cuts or crossfades needed.
+      const ha     = 0.06 * (1 - Math.min(smoothT / 0.3, 1))
+      const totalT = ns - cycleStart
+      const halfN  = Math.floor(totalT / LOOP.period)   // which half-cycle (0, 1, 2, ...)
+      const phase  = (totalT % LOOP.period) / LOOP.period  // 0 → 1 within this half
+
+      // Even half = forward, odd half = reverse
+      const frac = (halfN % 2 === 0) ? phase : 1.0 - phase
+
+      skyA.mat.uniforms.uHOffset.value = frac * ha
+      skyA.mat.uniforms.uVOffset.value = -frac * 0.10
+    }
+
+    renderer.render(scene, camera)
+  }
+  requestAnimationFrame(animate)
+
+    } // end initHeroBackground
+  })()
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCENE 2 — Connect section (#connect-drone, two-pass)
+  // Lazy-inits when #connect-track top reaches 120% of viewport height.
+  // ═══════════════════════════════════════════════════════════════════════════
+  ;(function () {
+    const trackEl = document.getElementById("connect-track")
+    if (!trackEl) { console.error("[scenes] #connect-track not found."); return }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) { obs.disconnect(); initConnectScene() }
+      },
+      { rootMargin: "0px 0px 20% 0px", threshold: 0 }
+    )
+    obs.observe(trackEl)
+
+    function initConnectScene() {
+
 
   // Mount into #connect-drone (z-index 2 — sits above #connect-background)
   const mountEl = document.getElementById("connect-drone")
@@ -61,7 +325,7 @@ window.addEventListener("load", () => {
   const skyMat = new THREE.ShaderMaterial({
     uniforms: {
       tImage:       { value: null },
-      uOpacity:     { value: 0.0 },
+      uOpacity:     { value: 1.0 },
       uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) }, // v6 exact
       uHFov:        { value: DOME_H_FOV },
       uImageAspect: { value: 16.0 / 9.0 },
@@ -97,55 +361,8 @@ window.addEventListener("load", () => {
   skySphereMesh.renderOrder = -1000
   skyScene.add(skySphereMesh)
 
-  // skyCamera — from drone-about-v6 ÷8
-  // v6: pos(-23.705, 16.498, -19.656) lookAt(0.6, 0.98, 0)
-  // ÷8: pos(-2.963, 2.062, -2.457) lookAt(0.075, 0.123, 0)
-  const initW = mountEl.clientWidth || window.innerWidth
-  const initH = mountEl.clientHeight || window.innerHeight
-  const skyCamera = new THREE.PerspectiveCamera(15, initW/initH, 0.1, 1000)
-  skyCamera.position.set(-2.963, 2.062, -2.457)
-  skyCamera.lookAt(0.075, 0.123, 0)
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TOPO WIREFRAME — background.js intro animation
-  // ═══════════════════════════════════════════════════════════════════════════
-  let skyReady = false
-  let topoMesh = null, topoMat = null, topoGeo = null
-  const anim = { phase:"waiting", phaseStart:0, gridRevealDuration:1.3, fadeInDuration:0.8 }
-  const easeOut   = t => 1-Math.pow(1-t,3)
-  const easeInOut = t => t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2
-  const _clearColor = new THREE.Color()
-
-  const GS=180, GSZ=200, GOX=-1.5, GOZ=-1
-  topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS)
-  topoGeo.rotateX(-Math.PI/2)
-  topoMat = new THREE.ShaderMaterial({
-    uniforms:{
-      tSky:{value:null}, uOpacity:{value:0.0}, uDisplacementScale:{value:3.5},
-      uGridMin:{value:new THREE.Vector2(GOX-GSZ/2, GOZ-GSZ/2)},
-      uGridMax:{value:new THREE.Vector2(GOX+GSZ/2, GOZ+GSZ/2)},
-    },
-    vertexShader:`
-      uniform sampler2D tSky;uniform float uDisplacementScale;uniform vec2 uGridMin,uGridMax;
-      varying float vL;
-      void main(){
-        vec3 wp=(modelMatrix*vec4(position,1.0)).xyz;
-        float u=clamp((wp.x-uGridMin.x)/(uGridMax.x-uGridMin.x),0.0,1.0);
-        float v=clamp(1.0-(wp.z-uGridMin.y)/(uGridMax.y-uGridMin.y),0.0,1.0);
-        vec4 ts=texture2D(tSky,vec2(u,v));
-        float lum=clamp(dot(ts.rgb,vec3(0.2126,0.7152,0.0722)),0.0,1.0);
-        vL=lum; wp.y+=lum*uDisplacementScale;
-        gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.0);
-      }
-    `,
-    fragmentShader:`uniform float uOpacity;varying float vL;void main(){gl_FragColor=vec4(vec3(0.82+vL*0.05),uOpacity);}`,
-    wireframe:true, transparent:true, depthWrite:false,
-  })
-  topoMesh = new THREE.Mesh(topoGeo, topoMat)
-  topoMesh.position.set(GOX, -1, GOZ)
-  skyScene.add(topoMesh)  // topo lives in skyScene so it renders in pass 1
-
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════
   // SCENE 2: DRONE — from drone-about-v6
   // ═══════════════════════════════════════════════════════════════════════════
   const scene = new THREE.Scene()
@@ -379,7 +596,7 @@ window.addEventListener("load", () => {
   renderer.outputColorSpace    = THREE.SRGBColorSpace
   renderer.toneMapping         = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 3.2
-  renderer.setClearColor(0xffffff, 1)  // white during intro; goes black after
+  renderer.setClearColor(0x000000, 1)
   renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
   mountEl.appendChild(renderer.domElement)
 
@@ -403,8 +620,6 @@ window.addEventListener("load", () => {
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
     skyMat.uniforms.tImage.value = tex
     skyMat.uniforms.uImageAspect.value = tex.image.width / tex.image.height
-    if (topoMat) topoMat.uniforms.tSky.value = tex
-    skyReady = true
   }, undefined, err => console.error("[connect-scene] BG load failed:", err))
 
   // ── Cloud parallax — drone-about-v6 values ÷8 ────────────────────────────
@@ -531,7 +746,7 @@ window.addEventListener("load", () => {
   new ResizeObserver(()=>{
     const w=mountEl.clientWidth||window.innerWidth, h=mountEl.clientHeight||window.innerHeight
     camera.aspect=w/h; camera.updateProjectionMatrix()
-    skyCamera.aspect=w/h; skyCamera.updateProjectionMatrix()
+    
     renderer.setSize(w,h); renderer.setPixelRatio(Math.min(window.devicePixelRatio,2))
   }).observe(mountEl)
 
@@ -549,12 +764,9 @@ window.addEventListener("load", () => {
 
     applyPose(smoothT)
 
-    // Sync sky camera orientation with main camera — drone-about-v6 exact line:
-    // skyCamera.quaternion.copy(camera.quaternion)
-    skyCamera.quaternion.copy(camera.quaternion)
 
     // Keep sky sphere centred on sky camera
-    skySphereMesh.position.copy(skyCamera.position)
+    skySphereMesh.position.copy(camera.position)
 
     // Cloud parallax — drone-about-v6 exact logic
     _camDelta.copy(camera.position).sub(cloudCamStart).multiplyScalar(CLOUD_PARALLAX)
@@ -594,38 +806,24 @@ window.addEventListener("load", () => {
       }
     }
 
-    // ── Background intro state machine (from background.js) ────────────────
-    if(anim.phase==="waiting"&&skyReady){anim.phase="gridReveal";anim.phaseStart=ns}
-
-    if(anim.phase==="gridReveal"){
-      const elapsed=ns-anim.phaseStart
-      const tt=Math.min(elapsed/anim.gridRevealDuration,1)
-      if(topoMat)topoMat.uniforms.uOpacity.value=easeInOut(tt)*0.45
-      if(tt>=1){anim.phase="fadeIn";anim.phaseStart=ns}
-
-    } else if(anim.phase==="fadeIn"){
-      const elapsed=ns-anim.phaseStart
-      const tt=Math.min(elapsed/anim.fadeInDuration,1),ee=easeOut(tt)
-      skyMat.uniforms.uOpacity.value=ee
-      if(topoMat)topoMat.uniforms.uOpacity.value=0.45*(1-ee)
-      const wb=1-ee; renderer.setClearColor(_clearColor.setRGB(wb,wb,wb),1)
-      if(tt>=1){
-        anim.phase="done"
-        skyMat.uniforms.uOpacity.value=1.0
-        renderer.setClearColor(0x000000,1)
-        if(topoMesh){skyScene.remove(topoMesh);topoGeo.dispose();topoMat.dispose();topoMesh=topoGeo=topoMat=null}
-      }
-
-
     // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
     renderer.domElement.style.filter=""
-    renderer.autoClear=true
-    renderer.render(skyScene, skyCamera)   // pass 1: sky background
-    renderer.autoClear=false
-    renderer.render(scene, camera)          // pass 2: drone + clouds (no clear)
-    renderer.autoClear=true
+    // Pass 1: sky — no tone mapping so image renders at true colors
+    renderer.toneMapping = THREE.NoToneMapping
+    renderer.autoClear = true
+    renderer.render(skyScene, camera)
+    // Pass 2: drone + clouds — ACESFilmic for PBR materials
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 3.2
+    renderer.autoClear = false
+    renderer.render(scene, camera)
+    renderer.autoClear = true
   }
   requestAnimationFrame(animate)
-})
 
-}
+    } // end initConnectScene
+  })()
+
+}) // end window load
+
+} // end desktop guard
