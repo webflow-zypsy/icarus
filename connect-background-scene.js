@@ -616,14 +616,6 @@ window.addEventListener("load", () => {
         if(topoMesh){skyScene.remove(topoMesh);topoGeo.dispose();topoMat.dispose();topoMesh=topoGeo=topoMat=null}
       }
 
-    } else if(anim.phase==="done"){
-      // background.js drift: hAmount = 0.06*(1-min(smoothT/0.3,1)), period 40s
-      const DRIFT_PERIOD=40.0
-      const driftT=(ns%DRIFT_PERIOD)/DRIFT_PERIOD
-      const hAmount=0.06*(1.0-Math.min(smoothT/0.3,1.0))
-      skyMat.uniforms.uHOffset.value=driftT*hAmount
-      skyMat.uniforms.uVOffset.value=-driftT*0.10
-    }
 
     // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
     renderer.domElement.style.filter=""
