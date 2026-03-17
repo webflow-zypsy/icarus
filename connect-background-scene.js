@@ -20,7 +20,7 @@
 // ASSET URL
 // ═══════════════════════════════════════════════════════════════════════════════
 const CONNECT_BG_ASSETS = {
-  image: "https://webflow-zypsy.github.io/icarus/vienna-mountains.webp",
+  image: "https://cdn.prod.website-files.com/69b42208e2297136fbc4e672/69b99f34243a447194ff8b29_vienna-mountains.webp",
 }
 
 // ─── Loop config ──────────────────────────────────────────────────────────────
@@ -61,18 +61,20 @@ window.addEventListener("load", () => {
   const initH  = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(70, initW / initH, 0.1, 1000)
 
-  const renderer = new THREE.WebGLRenderer({ antialias: false })
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true })
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.NoToneMapping
-  renderer.setClearColor(0xffffff, 1)
+  renderer.setClearColor(0xffffff, 1)  // white during intro only; becomes transparent after
   renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
   mountEl.appendChild(renderer.domElement)
 
   // ── Sky sphere factory ───────────────────────────────────────────────────────
-  // Narrower FOV than scene 1 (42° vs 183°) for the telephoto mountain look.
-  // uCenterDir points toward the mountain/horizon region of the image.
-  const DOME_H_FOV = 42.0 * Math.PI / 180.0  // 42° — telephoto, matches drone-about-v6
+  // Wider FOV than drone-about-v6's 42° so the image fills the viewport properly.
+  // 42° was tuned for that scene's specific camera distance; for a full-viewport
+  // background we need something closer to scene 1's 183° wide dome approach,
+  // but kept tighter than full-sphere to preserve the telephoto mountain look.
+  const DOME_H_FOV = 120.0 * Math.PI / 180.0
 
   function makeSkyMesh(tex) {
     const geo = new THREE.SphereGeometry(500, 64, 32)
@@ -80,8 +82,8 @@ window.addEventListener("load", () => {
       uniforms: {
         tImage:       { value: tex },
         uOpacity:     { value: 0.0 },
-        // Center direction tuned for vienna-mountains.webp mountain horizon
-        uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) },
+        // Same center direction as the working background-scene.js
+        uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) },
         uHFov:        { value: DOME_H_FOV },
         uImageAspect: { value: tex ? tex.image.width / tex.image.height : 16 / 9 },
         uHOffset:     { value: 0.0 },
@@ -237,7 +239,9 @@ window.addEventListener("load", () => {
       if (t >= 1) {
         anim.phase = "running"; cycleStart = ns
         if (skyA) skyA.mat.uniforms.uOpacity.value = 1.0
-        renderer.setClearColor(0x000000, 1)
+        // Switch to transparent clear so the background div's own bg shows
+        // (Webflow sets background-color on .connect_background via CSS)
+        renderer.setClearColor(0x000000, 0)
         if (topoMesh) {
           scene.remove(topoMesh); topoGeo.dispose(); topoMat.dispose()
           topoMesh = topoGeo = topoMat = null
@@ -246,20 +250,16 @@ window.addEventListener("load", () => {
 
     } else if (anim.phase === "running" && skyA) {
 
-      // ── Slow vertical drift driven by scroll + ping-pong horizontal pan ──
-      // For this telephoto mountain view: subtle horizontal pan + slight
-      // vertical lift as the user scrolls upward through the section.
-      // The pan amplitude is smaller than scene 1 since the FOV is tighter —
-      // a little movement goes a long way at 42°.
-      const ha     = 0.025 * (1 - Math.min(smoothT / 0.3, 1))
+      // ── Ping-pong pan — same logic as background-scene.js scene 1 ──────────
+      const ha     = 0.06 * (1 - Math.min(smoothT / 0.3, 1))
       const totalT = ns - cycleStart
       const halfN  = Math.floor(totalT / LOOP.period)
       const phase  = (totalT % LOOP.period) / LOOP.period
       const frac   = (halfN % 2 === 0) ? phase : 1.0 - phase
 
       skyA.mat.uniforms.uHOffset.value = frac * ha
-      // Scroll lifts the camera upward through the mountains toward sky
-      skyA.mat.uniforms.uVOffset.value = -smoothT * 0.06 - frac * 0.02
+      // Subtle downward drift with scroll (mountains rise slightly into frame)
+      skyA.mat.uniforms.uVOffset.value = -frac * 0.10
     }
 
     renderer.render(scene, camera)
