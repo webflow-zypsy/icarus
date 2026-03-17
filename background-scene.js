@@ -18,7 +18,19 @@ const LOOP = {
 
 import * as THREE from "three"
 
+// ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
+// The scene is skipped entirely on viewports narrower than 1024 px.
+// If the user resizes into a desktop viewport after load, a full page reload
+// is required (Three.js scenes cannot be hot-initialised mid-session).
+const DESKTOP_MQ = window.matchMedia("(min-width: 992px)")
+if (!DESKTOP_MQ.matches) {
+  console.info("[bg-scene] Skipped — non-desktop viewport.")
+} else {
+
 window.addEventListener("load", () => {
+  if (!window.matchMedia("(min-width: 992px)").matches) {
+    console.info("[bg-scene] Skipped — non-desktop viewport."); return
+  }
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
     console.error("[bg-scene] GSAP / ScrollTrigger not found."); return
   }
@@ -244,3 +256,5 @@ window.addEventListener("load", () => {
   }
   requestAnimationFrame(animate)
 })
+
+}
