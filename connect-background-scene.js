@@ -1,5 +1,5 @@
 /**
- * connect-background-scene.js  —  ES Module
+ * connect-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
  * Combines drone-about-v6.js + background.js into a single two-pass renderer,
  * mounted into #connect-drone (drone canvas, z-index 2).
@@ -49,18 +49,20 @@ window.addEventListener("load", () => {
   const clock = new THREE.Clock()
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SCENE 1: SKY (background pass) — from background.js
+  // SCENE 1: SKY (background pass) — drone-about-v6 exact values
+  // These are tuned specifically for vienna-mountains.webp
   // ═══════════════════════════════════════════════════════════════════════════
   const skyScene = new THREE.Scene()
 
-  // background.js sky sphere values — used verbatim
-  const DOME_H_FOV = 183.0 * Math.PI / 180.0  // background.js: 183°
+  // drone-about-v6 DOME_H_FOV = 42° (telephoto crop of the mountain image)
+  // drone-about-v6 uCenterDir = (-0.621, -0.343, -0.705)
+  const DOME_H_FOV = 42.0 * Math.PI / 180.0
   const skySphereGeo = new THREE.SphereGeometry(500, 64, 32)
   const skyMat = new THREE.ShaderMaterial({
     uniforms: {
       tImage:       { value: null },
       uOpacity:     { value: 0.0 },
-      uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) }, // background.js exact
+      uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) }, // v6 exact
       uHFov:        { value: DOME_H_FOV },
       uImageAspect: { value: 16.0 / 9.0 },
       uHOffset:     { value: 0.0 },
