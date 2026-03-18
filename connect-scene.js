@@ -1,4 +1,4 @@
-\/**
+/**
  * connect-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
  * Single file for both background scenes:
