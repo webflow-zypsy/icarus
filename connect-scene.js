@@ -316,7 +316,6 @@ window.addEventListener("load", () => {
       uImageAspect: { value: 16.0 / 9.0 },
       uHOffset:     { value: 0.0 },
       uVOffset:     { value: 0.0 },
-      uDarkness:    { value: 0.0 }, // 0 = full day, 1 = full night
     },
     vertexShader: `
       varying vec3 vLocalPos;
@@ -324,7 +323,7 @@ window.addEventListener("load", () => {
     `,
     fragmentShader: `
       uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
-      uniform float uHFov,uImageAspect,uHOffset,uVOffset,uDarkness;
+      uniform float uHFov,uImageAspect,uHOffset,uVOffset;
       varying vec3 vLocalPos;
       void main(){
         vec3 dir=normalize(vLocalPos);
@@ -338,10 +337,7 @@ window.addEventListener("load", () => {
         float v=0.5+el/(2.0*vv)+uVOffset;
         if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
         float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-        vec3 dayColor=texture2D(tImage,vec2(u,v)).rgb;
-        vec3 nightColor=vec3(0.004,0.008,0.020); // deep night blue-black
-        vec3 finalColor=mix(dayColor,nightColor,uDarkness);
-        gl_FragColor=vec4(finalColor,uOpacity*ef);
+        gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
       }
     `,
     side: THREE.BackSide, transparent: true, depthWrite: false,
@@ -600,7 +596,9 @@ window.addEventListener("load", () => {
         transparent:true, depthWrite:false, side:THREE.DoubleSide,
       })
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sx,sy), mat)
-      mesh.position.set(x,y,z); cloudGroup.add(mesh); cloudMeshes.push(mesh)
+      mesh.position.set(x,y,z)
+      mesh._baseOpacity = opacity ?? 0.85  // stored for scroll-driven fade
+      cloudGroup.add(mesh); cloudMeshes.push(mesh)
     })
   }
   makeCloud(ASSETS.cloud1, -1.5, -0.5, -1.0, 3.5, 1.75)        // connect-cloud-image-1: bottom-left
@@ -732,16 +730,22 @@ window.addEventListener("load", () => {
     }
 
     // ── Day → night transition driven by scroll ────────────────────────────
-    // Transition starts at 40% scroll and completes at 100%.
-    // Uses a smoothstep so the fade accelerates naturally mid-scroll.
-    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.4, 1.0)
-    skyMat.uniforms.uDarkness.value = nightT
-    // Pull exposure down from 3.2 → 1.2 so the drone darkens in tandem
-    const dayExposure = 3.2, nightExposure = 1.2
-    const currentExposure = dayExposure + (nightExposure - dayExposure) * nightT
+    // Starts at 60% scroll, completes at 100%. CSS filter on the canvas so
+    // the image desaturates + cools + dims rather than fading to black.
+    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.6, 1.0)
+    const sat        = 1.0 - nightT * 0.75   // 100% → 25% saturation
+    const brightness = 1.0 - nightT * 0.45   // 100% → 55% brightness
+    const hueRot     = nightT * 200           // warm tones rotate toward blue
+    renderer.domElement.style.filter =
+      `saturate(${sat}) brightness(${brightness}) hue-rotate(${hueRot}deg)`
+    // Pull exposure down from 3.2 → 1.8 so the drone darkens in tandem
+    const currentExposure = 3.2 - nightT * 1.4
+
+    // ── Cloud fade — 80% → 100% scroll ────────────────────────────────────
+    const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
+    for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
     // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
-    renderer.domElement.style.filter=""
     // Pass 1: sky — no tone mapping so image renders at true colors
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
