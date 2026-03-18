@@ -196,6 +196,7 @@ window.addEventListener("load", () => {
     { cam: new THREE.Vector3(-4.641, 3.509,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
     { cam: new THREE.Vector3(-5.613,11.412,  0   ), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
   ]
+      
   const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
   let scrollT = 0, smoothT = 0
 
@@ -378,8 +379,9 @@ window.addEventListener("load", () => {
   const bobCfg = { bobAmp:0.005, bobPeriod:5.0, stallPeriod:3.0, stallDepth:0.35, pitchAmp:0.0075 }
 
   // Drone offset — v6 values ÷8
-  const droneOffsetPos1 = { x: 0.0625, y:0, z:-0.4375 }
-  const droneOffsetPos2 = { x:-0.3125, y:0, z:-0.5625 }
+  const droneOffsetPos1 = { x: -0.040, y: 1.045, z: -0.560 }
+  const droneOffsetPos2 = { x: 0.030, y: 0.168, z: -0.650 }
+      
   const droneOffset = { x:droneOffsetPos1.x, y:0, z:droneOffsetPos1.z }
 
   // ── Reveal ────────────────────────────────────────────────────────────────
@@ -667,8 +669,8 @@ window.addEventListener("load", () => {
   // v6 pose 0: cam(19.28,16.29,25.20) tgt(0.6,0.98,0)  ÷8 = cam(2.410,2.036,3.150) tgt(0.075,0.123,0)
   // v6 pose 1: cam(24.92,12.85,22.04) tgt(0.6,0.98,0)  ÷8 = cam(3.115,1.606,2.755) tgt(0.075,0.123,0)
   const poses = [
-    { cam: new THREE.Vector3(2.410, 2.036, 3.150), tgt: new THREE.Vector3(0.075, 0.123, 0) },
-    { cam: new THREE.Vector3(3.115, 1.606, 2.755), tgt: new THREE.Vector3(0.075, 0.123, 0) },
+    { cam: new THREE.Vector3(2.410, 2.035, 3.150), tgt: new THREE.Vector3(-0.360, 0.190, 0.000) },
+    { cam: new THREE.Vector3(3.140, 1.445, 2.755), tgt: new THREE.Vector3(0.075, 0.120, 0.000) },    
   ]
   let scrollT=0, smoothT=0
   const _posePos=new THREE.Vector3(), _poseTgt=new THREE.Vector3()
