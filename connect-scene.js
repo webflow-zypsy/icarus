@@ -316,6 +316,7 @@ window.addEventListener("load", () => {
       uImageAspect: { value: 16.0 / 9.0 },
       uHOffset:     { value: 0.0 },
       uVOffset:     { value: 0.0 },
+      uDarkness:    { value: 0.0 }, // 0 = full day, 1 = full night
     },
     vertexShader: `
       varying vec3 vLocalPos;
@@ -323,7 +324,7 @@ window.addEventListener("load", () => {
     `,
     fragmentShader: `
       uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
-      uniform float uHFov,uImageAspect,uHOffset,uVOffset;
+      uniform float uHFov,uImageAspect,uHOffset,uVOffset,uDarkness;
       varying vec3 vLocalPos;
       void main(){
         vec3 dir=normalize(vLocalPos);
@@ -337,7 +338,10 @@ window.addEventListener("load", () => {
         float v=0.5+el/(2.0*vv)+uVOffset;
         if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
         float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-        gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+        vec3 dayColor=texture2D(tImage,vec2(u,v)).rgb;
+        vec3 nightColor=vec3(0.004,0.008,0.020); // deep night blue-black
+        vec3 finalColor=mix(dayColor,nightColor,uDarkness);
+        gl_FragColor=vec4(finalColor,uOpacity*ef);
       }
     `,
     side: THREE.BackSide, transparent: true, depthWrite: false,
@@ -727,6 +731,15 @@ window.addEventListener("load", () => {
       )
     }
 
+    // ── Day → night transition driven by scroll ────────────────────────────
+    // Transition starts at 40% scroll and completes at 100%.
+    // Uses a smoothstep so the fade accelerates naturally mid-scroll.
+    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.4, 1.0)
+    skyMat.uniforms.uDarkness.value = nightT
+    // Pull exposure down from 3.2 → 1.2 so the drone darkens in tandem
+    const dayExposure = 3.2, nightExposure = 1.2
+    const currentExposure = dayExposure + (nightExposure - dayExposure) * nightT
+
     // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
     renderer.domElement.style.filter=""
     // Pass 1: sky — no tone mapping so image renders at true colors
@@ -735,7 +748,7 @@ window.addEventListener("load", () => {
     renderer.render(skyScene, camera)
     // Pass 2: drone + clouds — ACESFilmic for PBR materials
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.2
+    renderer.toneMappingExposure = currentExposure
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
