@@ -24,6 +24,7 @@ const ASSETS = {
   hdr:    "https://webflow-zypsy.github.io/icarus/green-512.hdr",
   model:  "https://webflow-zypsy.github.io/icarus/apollo-drone.glb",
   bg:     "https://webflow-zypsy.github.io/icarus/connect-background-image.webp",
+  bg2:    "https://webflow-zypsy.github.io/icarus/connect-background-image-2.webp",
   cloud1: "https://webflow-zypsy.github.io/icarus/connect-cloud-image-1.webp",
   cloud2: "https://webflow-zypsy.github.io/icarus/connect-cloud-image-2.webp",
 }
@@ -298,55 +299,62 @@ window.addEventListener("load", () => {
   const clock = new THREE.Clock()
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SCENE 1: SKY (background pass) — drone-about-v6 exact values
-  // These are tuned specifically for connect-background-image.webp
+  // SCENE 1: SKY (background pass) — two spheres, crossfade day → night
   // ═══════════════════════════════════════════════════════════════════════════
   const skyScene = new THREE.Scene()
 
-  // drone-about-v6 DOME_H_FOV = 42° (telephoto crop of the mountain image)
-  // drone-about-v6 uCenterDir = (-0.621, -0.343, -0.705)
   const DOME_H_FOV = 42.0 * Math.PI / 180.0
-  const skySphereGeo = new THREE.SphereGeometry(500, 64, 32)
-  const skyMat = new THREE.ShaderMaterial({
-    uniforms: {
-      tImage:       { value: null },
-      uOpacity:     { value: 1.0 },
-      uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) }, // v6 exact
-      uHFov:        { value: DOME_H_FOV },
-      uImageAspect: { value: 16.0 / 9.0 },
-      uHOffset:     { value: 0.0 },
-      uVOffset:     { value: 0.0 },
-      uExposure:    { value: 1.0 }, // driven by scroll to darken sky in sync with drone pass
-    },
-    vertexShader: `
-      varying vec3 vLocalPos;
-      void main(){ vLocalPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
-    `,
-    fragmentShader: `
-      uniform sampler2D tImage; uniform float uOpacity,uExposure; uniform vec3 uCenterDir;
-      uniform float uHFov,uImageAspect,uHOffset,uVOffset;
-      varying vec3 vLocalPos;
-      void main(){
-        vec3 dir=normalize(vLocalPos);
-        vec3 fwd=normalize(uCenterDir);
-        vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
-        vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
-        float az=atan(dot(dir,rt),dot(dir,fwd));
-        float el=asin(clamp(dot(dir,up),-1.0,1.0));
-        float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
-        float u=(az/(2.0*hh)+0.5)+uHOffset;
-        float v=0.5+el/(2.0*vv)+uVOffset;
-        if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
-        float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-        vec3 col=texture2D(tImage,vec2(u,v)).rgb*uExposure;
-        gl_FragColor=vec4(col,uOpacity*ef);
-      }
-    `,
-    side: THREE.BackSide, transparent: true, depthWrite: false,
-  })
-  const skySphereMesh = new THREE.Mesh(skySphereGeo, skyMat)
-  skySphereMesh.renderOrder = -1000
-  skyScene.add(skySphereMesh)
+
+  // Shared sky sphere factory — same projection for both images
+  function makeSkyMat(opacity) {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        tImage:       { value: null },
+        uOpacity:     { value: opacity },
+        uCenterDir:   { value: new THREE.Vector3(-0.621, -0.343, -0.705) },
+        uHFov:        { value: DOME_H_FOV },
+        uImageAspect: { value: 16.0 / 9.0 },
+        uHOffset:     { value: 0.0 },
+        uVOffset:     { value: 0.0 },
+      },
+      vertexShader: `
+        varying vec3 vLocalPos;
+        void main(){ vLocalPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+      `,
+      fragmentShader: `
+        uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
+        uniform float uHFov,uImageAspect,uHOffset,uVOffset;
+        varying vec3 vLocalPos;
+        void main(){
+          vec3 dir=normalize(vLocalPos);
+          vec3 fwd=normalize(uCenterDir);
+          vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
+          vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
+          float az=atan(dot(dir,rt),dot(dir,fwd));
+          float el=asin(clamp(dot(dir,up),-1.0,1.0));
+          float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
+          float u=(az/(2.0*hh)+0.5)+uHOffset;
+          float v=0.5+el/(2.0*vv)+uVOffset;
+          if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
+          float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
+          gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+        }
+      `,
+      side: THREE.BackSide, transparent: true, depthWrite: false,
+    })
+  }
+
+  // Day sphere — always fully opaque, renders first
+  const skyMat  = makeSkyMat(1.0)
+  const skyMesh  = new THREE.Mesh(new THREE.SphereGeometry(500, 64, 32), skyMat)
+  skyMesh.renderOrder = -1001
+  skyScene.add(skyMesh)
+
+  // Night sphere — starts invisible, fades in over scroll 50% → 100%
+  const skyMat2 = makeSkyMat(0.0)
+  const skyMesh2 = new THREE.Mesh(new THREE.SphereGeometry(500, 64, 32), skyMat2)
+  skyMesh2.renderOrder = -1000
+  skyScene.add(skyMesh2)
 
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -558,14 +566,19 @@ window.addEventListener("load", () => {
     tex.dispose()
   })
 
-  // ── Load background image — feed to skyMat + topoMat ─────────────────────
-  new THREE.TextureLoader().load(ASSETS.bg, tex => {
-    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
-    tex.generateMipmaps = false
-    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
-    skyMat.uniforms.tImage.value = tex
-    skyMat.uniforms.uImageAspect.value = tex.image.width / tex.image.height
-  }, undefined, err => console.error("[connect-scene] BG load failed:", err))
+  // ── Load background images ────────────────────────────────────────────────
+  const texLoader = new THREE.TextureLoader()
+  function loadBgTex(url, mat) {
+    texLoader.load(url, tex => {
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
+      tex.generateMipmaps = false
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+      mat.uniforms.tImage.value = tex
+      mat.uniforms.uImageAspect.value = tex.image.width / tex.image.height
+    }, undefined, err => console.error("[connect-scene] BG load failed:", url, err))
+  }
+  loadBgTex(ASSETS.bg,  skyMat)   // day image → day sphere
+  loadBgTex(ASSETS.bg2, skyMat2)  // night image → night sphere
 
   // ── Cloud parallax — drone-about-v6 values ÷8 ────────────────────────────
   // v6: connect-cloud-image-1 at (-12,-4,-8) scale 28×14, CLOUD_PARALLAX=0.7, CLOUD_EDGE_FADE=0.25
@@ -704,8 +717,9 @@ window.addEventListener("load", () => {
     applyPose(smoothT)
 
 
-    // Keep sky sphere centred on sky camera
-    skySphereMesh.position.copy(camera.position)
+    // Keep sky spheres centred on camera so they never clip
+    skyMesh.position.copy(camera.position)
+    skyMesh2.position.copy(camera.position)
 
     // Cloud parallax — drone-about-v6 exact logic
     _camDelta.copy(camera.position).sub(cloudCamStart).multiplyScalar(CLOUD_PARALLAX)
@@ -731,34 +745,24 @@ window.addEventListener("load", () => {
       )
     }
 
-    // ── Day → night transition driven by scroll ────────────────────────────
-    // Mirrors drone-about-v6: drop exposure sharply + rotate env so HDR
-    // lighting swings to the dark side. ACES naturally desaturates + crushes
-    // the image as exposure falls — no CSS filter needed.
-    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
-    renderer.domElement.style.filter = ""
-    // Exposure: 3.2 (day) → 0.4 (night) — ACES makes this look very dark/blue
-    const currentExposure = 3.2 - nightT * 2.8
-    // Sky brightness tracks the same curve so background darkens in sync
-    skyMat.uniforms.uExposure.value = 1.0 - nightT * 0.88
-    // Env rotation: shift Y by +120° so HDR warm key light swings away
-    if (scene.environmentRotation) {
-      const baseY = 1960 * Math.PI / 180
-      scene.environmentRotation.y = baseY + nightT * (120 * Math.PI / 180)
-    }
+    // ── Day → night crossfade — 50% → 100% scroll ─────────────────────────
+    // Fades the night image (sphere 2) in on top of the day image (sphere 1).
+    // No exposure tricks, no CSS filters — pure opacity blend.
+    skyMat2.uniforms.uOpacity.value = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
 
     // ── Cloud fade — 80% → 100% scroll ────────────────────────────────────
     const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
     for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
-    // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
-    // Pass 1: sky — no tone mapping so image renders at true colors
+    // ── Two-pass render ────────────────────────────────────────────────────
+    // Pass 1: sky — NoToneMapping so images render at true colours
+    renderer.domElement.style.filter = ""
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
     renderer.render(skyScene, camera)
     // Pass 2: drone + clouds — ACESFilmic for PBR materials
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = currentExposure
+    renderer.toneMappingExposure = 3.2
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
