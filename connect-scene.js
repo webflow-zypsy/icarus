@@ -747,8 +747,8 @@ window.addEventListener("load", () => {
 
     // ── Day → night crossfade — 50% → 100% scroll ─────────────────────────
     // Fades the night image (sphere 2) in on top of the day image (sphere 1).
-    // No exposure tricks, no CSS filters — pure opacity blend.
-    skyMat2.uniforms.uOpacity.value = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
+    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
+    skyMat2.uniforms.uOpacity.value = nightT
 
     // ── Cloud fade — 80% → 100% scroll ────────────────────────────────────
     const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
@@ -760,9 +760,9 @@ window.addEventListener("load", () => {
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
     renderer.render(skyScene, camera)
-    // Pass 2: drone + clouds — ACESFilmic for PBR materials
+    // Pass 2: drone + clouds — ACESFilmic; exposure drops 3.2 → 0.6 as night fades in
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.2
+    renderer.toneMappingExposure = 3.2 - nightT * 2.6
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
