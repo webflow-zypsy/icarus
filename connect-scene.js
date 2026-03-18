@@ -554,17 +554,36 @@ window.addEventListener("load", () => {
   mountEl.appendChild(renderer.domElement)
 
   // ── Lighting ──────────────────────────────────────────────────────────────
-  const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.80)
+  // Env is zeroed out entirely — the green-512.hdr has a green cast that
+  // contaminates both poses. All lighting is driven by explicit lights only.
+
+  const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.0)
   scene.add(hemiLight)
-  const _dayHemiColor    = new THREE.Color('#8eafc2')
+  const _dayHemiColor    = new THREE.Color(0x8eafc2)
   const _nightHemiColor  = new THREE.Color('#173a72')
-  const _dayHemiGround   = new THREE.Color('#584838')
+  const _dayHemiGround   = new THREE.Color(0x584838)
   const _nightHemiGround = new THREE.Color('#0a0f1a')
 
-  const nightKeyLight = new THREE.DirectionalLight('#bdfffb', 0.0)
+  // Day: warm golden key from upper-right (matches sunset reference)
+  const dayKeyLight = new THREE.DirectionalLight(0xffb347, 3.5)
+  dayKeyLight.position.set(4, 3, -2)
+  scene.add(dayKeyLight)
+
+  // Day: soft warm amber fill from front-left (lifts shadow side gently)
+  const dayFillLight = new THREE.DirectionalLight(0xd4824a, 1.2)
+  dayFillLight.position.set(-3, 1, 3)
+  scene.add(dayFillLight)
+
+  // Day: cool sky bounce from above (gives the dark blue-grey on top faces)
+  const dayTopLight = new THREE.DirectionalLight(0x8eafc2, 0.8)
+  dayTopLight.position.set(0, 6, 0)
+  scene.add(dayTopLight)
+
+  // Night: pure blue-white key, no cyan/teal
+  const nightKeyLight = new THREE.DirectionalLight(0xd0e8ff, 0.0)
   nightKeyLight.position.set(-3.50, 2.50, 3.50)
   scene.add(nightKeyLight)
-  const nightFillLight = new THREE.DirectionalLight('#4a6080', 0.0)
+  const nightFillLight = new THREE.DirectionalLight(0x4a6080, 0.0)
   nightFillLight.position.set(-2.00, -3.00, -2.00)
   scene.add(nightFillLight)
 
@@ -575,6 +594,7 @@ window.addEventListener("load", () => {
     tex.mapping = THREE.EquirectangularReflectionMapping
     scene.environment = pmrem.fromEquirectangular(tex).texture
     scene.environmentRotation = new THREE.Euler(-1070*Math.PI/180, 1960*Math.PI/180, 0)
+    scene.environmentIntensity = 0.0  // zeroed — explicit lights drive all illumination
     tex.dispose()
   })
 
@@ -765,17 +785,27 @@ window.addEventListener("load", () => {
     const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
     for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
-    // ── Drone night lighting ───────────────────────────────────────────────
+    // ── Lighting: day lights fade out, night lights fade in ───────────────
     renderer.domElement.style.filter = ""
+    const dayT = 1.0 - nightT
+
+    // Hemi shifts from neutral to deep blue (ambient fill colour only)
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
-    hemiLight.intensity = 0.80 + nightT * 0.00
-    scene.environmentIntensity = 1.00 - nightT * 0.75
+    hemiLight.intensity = nightT * 0.6   // only active at night as ambient fill
+
+    // Day directional lights fade out
+    dayKeyLight.intensity  = dayT * 3.5
+    dayFillLight.intensity = dayT * 1.2
+    dayTopLight.intensity  = dayT * 0.8
+
+    // Night directional lights fade in
     nightKeyLight.intensity  = nightT * 1.60
     nightFillLight.intensity = nightT * 0.00
-    if (scene.environmentRotation) {
-      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (0 * Math.PI / 180)
-    }
+
+    // Env stays at 0 throughout — driven by explicit lights only
+    scene.environmentIntensity = 0.0
+
     renderer.toneMappingExposure = 3.20 - nightT * 1.35
 
     // ── Two-pass render ────────────────────────────────────────────────────
