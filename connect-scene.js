@@ -1,5 +1,5 @@
 /**
- * connect-background-scene.js  —  ES Module
+ * connect-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
  * Single file for both background scenes:
  *
@@ -8,24 +8,24 @@
  *     Lazy-inits when #scenes-track enters 120% of viewport height.
  *
  *   Scene 2 — Connect (#connect-drone, #connect-track)
- *     Two-pass renderer: sky sphere (42° FOV, vienna-mountains) + drone + clouds.
+ *     Two-pass renderer: sky sphere (42° FOV, connect-background-image) + drone + clouds.
  *     No intro. Lazy-inits when #connect-track enters 120% of viewport height.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 // ─── ASSETS ───────────────────────────────────────────────────────────────────
 const BG_ASSETS = {
-  image: "https://webflow-zypsy.github.io/icarus/background-v2.webp",
+  image: "https://webflow-zypsy.github.io/icarus/hero-background-image.webp",
 }
 
 const LOOP = { period: 45.0 }
 
 const ASSETS = {
   hdr:    "https://webflow-zypsy.github.io/icarus/green-512.hdr",
-  model:  "https://webflow-zypsy.github.io/icarus/apollo-draco.glb",
-  bg:     "https://webflow-zypsy.github.io/icarus/vienna-mountains.webp",
-  cloud1: "https://webflow-zypsy.github.io/icarus/cloud03-7.webp",
-  cloud2: "https://webflow-zypsy.github.io/icarus/cloud03-8.webp",
+  model:  "https://webflow-zypsy.github.io/icarus/apollo-drone.glb",
+  bg:     "https://webflow-zypsy.github.io/icarus/connect-background-image.webp",
+  cloud1: "https://webflow-zypsy.github.io/icarus/connect-cloud-image-1.webp",
+  cloud2: "https://webflow-zypsy.github.io/icarus/connect-cloud-image-2.webp",
 }
 
 import * as THREE     from "three"
@@ -319,7 +319,7 @@ window.addEventListener("load", () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SCENE 1: SKY (background pass) — drone-about-v6 exact values
-  // These are tuned specifically for vienna-mountains.webp
+  // These are tuned specifically for connect-background-image.webp
   // ═══════════════════════════════════════════════════════════════════════════
   const skyScene = new THREE.Scene()
 
@@ -629,7 +629,7 @@ window.addEventListener("load", () => {
   }, undefined, err => console.error("[connect-scene] BG load failed:", err))
 
   // ── Cloud parallax — drone-about-v6 values ÷8 ────────────────────────────
-  // v6: cloud03-7 at (-12,-4,-8) scale 28×14, CLOUD_PARALLAX=0.7, CLOUD_EDGE_FADE=0.25
+  // v6: connect-cloud-image-1 at (-12,-4,-8) scale 28×14, CLOUD_PARALLAX=0.7, CLOUD_EDGE_FADE=0.25
   // ÷8: (-1.5,-0.5,-1.0) scale 3.5×1.75
   const CLOUD_PARALLAX  = 0.7
   const CLOUD_EDGE_FADE = 0.25
@@ -662,8 +662,8 @@ window.addEventListener("load", () => {
       mesh.position.set(x,y,z); cloudGroup.add(mesh); cloudMeshes.push(mesh)
     })
   }
-  makeCloud(ASSETS.cloud1, -1.5, -0.5, -1.0, 3.5, 1.75)        // cloud03-7: bottom-left
-  makeCloud(ASSETS.cloud2,  1.2, -0.3, -0.8, 2.8, 1.4,  0.7)   // cloud03-8: right side
+  makeCloud(ASSETS.cloud1, -1.5, -0.5, -1.0, 3.5, 1.75)        // connect-cloud-image-1: bottom-left
+  makeCloud(ASSETS.cloud2,  1.2, -0.3, -0.8, 2.8, 1.4,  0.7)   // connect-cloud-image-2: right side
 
   // ── Camera poses — drone-about-v6 ÷8 ─────────────────────────────────────
   // v6 pose 0: cam(19.28,16.29,25.20) tgt(0.6,0.98,0)  ÷8 = cam(2.410,2.036,3.150) tgt(0.075,0.123,0)
