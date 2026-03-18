@@ -4,12 +4,12 @@
  * Single file for both background scenes:
  *
  *   Scene 1 — Hero (#scene-background, #scenes-track)
- *     Wide sky dome (183°) with topo wireframe intro + ping-pong drift.
- *     Lazy-inits when #scenes-track enters 120% of viewport height.
+ *     Wide sky dome (183°, horizontally flipped) with topo wireframe intro + ping-pong drift.
+ *     Inits 500ms after page load.
  *
  *   Scene 2 — Connect (#connect-drone, #connect-track)
- *     Two-pass renderer: sky sphere (42° FOV, connect-background-image) + drone + clouds.
- *     No intro. Lazy-inits when #connect-track enters 120% of viewport height.
+ *     Two-pass renderer: sky sphere (42° FOV, connect-background-image, horizontally flipped) + drone + clouds.
+ *     No intro animation. Inits 500ms after page load.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -47,19 +47,10 @@ window.addEventListener("load", () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SCENE 1 — Hero background (#scene-background)
-  // Lazy-inits when #scenes-track top reaches 120% of viewport height.
+  // Inits 500ms after page load.
   // ═══════════════════════════════════════════════════════════════════════════
   ;(function () {
-    const trackEl = document.getElementById("scenes-track")
-    if (!trackEl) { console.error("[scenes] #scenes-track not found."); return }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) { obs.disconnect(); initHeroBackground() }
-      },
-      { rootMargin: "0px 0px 20% 0px", threshold: 0 }
-    )
-    obs.observe(trackEl)
+    setTimeout(initHeroBackground, 500)
 
     function initHeroBackground() {
 
@@ -290,23 +281,12 @@ window.addEventListener("load", () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SCENE 2 — Connect section (#connect-drone, two-pass)
-  // Lazy-inits when #connect-track top reaches 120% of viewport height.
+  // Inits 500ms after page load.
   // ═══════════════════════════════════════════════════════════════════════════
   ;(function () {
-    const trackEl = document.getElementById("connect-track")
-    if (!trackEl) { console.error("[scenes] #connect-track not found."); return }
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) { obs.disconnect(); initConnectScene() }
-      },
-      { rootMargin: "0px 0px 20% 0px", threshold: 0 }
-    )
-    obs.observe(trackEl)
+    setTimeout(initConnectScene, 500)
 
     function initConnectScene() {
-
-  const easeOut = t => 1 - Math.pow(1 - t, 3)
 
   // Mount into #connect-drone (z-index 2 — sits above #connect-background)
   const mountEl = document.getElementById("connect-drone")
@@ -353,7 +333,7 @@ window.addEventListener("load", () => {
         float az=atan(dot(dir,rt),dot(dir,fwd));
         float el=asin(clamp(dot(dir,up),-1.0,1.0));
         float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
-        float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
+        float u=(az/(2.0*hh)+0.5)+uHOffset;
         float v=0.5+el/(2.0*vv)+uVOffset;
         if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
         float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
@@ -383,49 +363,6 @@ window.addEventListener("load", () => {
   const droneOffsetPos2 = { x: 0.030, y: 0.168, z: -0.650 }
       
   const droneOffset = { x:droneOffsetPos1.x, y:0, z:droneOffsetPos1.z }
-
-  // ── Reveal ────────────────────────────────────────────────────────────────
-  const reveal = {
-    active:false, startTime:0, wireframeDuration:1.3, fadeOutDuration:0.8,
-    maxRadius:1, wireframeClones:[], wireframeMat:null,
-    solidUniforms:{revealRadius:{value:0}},
-    wireUniforms: {revealRadius:{value:0}},
-  }
-
-  function injectRevealShader(mat, uni) {
-    mat.onBeforeCompile = s => {
-      s.uniforms.revealRadius = uni.revealRadius
-      s.vertexShader = s.vertexShader
-        .replace("#include <common>","#include <common>\nvarying vec3 vRevealWorldPos;")
-        .replace("#include <fog_vertex>","#include <fog_vertex>\nvRevealWorldPos=(modelMatrix*vec4(transformed,1.0)).xyz;")
-      s.fragmentShader = s.fragmentShader
-        .replace("#include <clipping_planes_pars_fragment>",
-          "#include <clipping_planes_pars_fragment>\nuniform float revealRadius;\nvarying vec3 vRevealWorldPos;")
-        .replace("vec4 diffuseColor = vec4( diffuse, opacity );",
-          "vec4 diffuseColor=vec4(diffuse,opacity);\n{float d=max(abs(vRevealWorldPos.x),abs(vRevealWorldPos.z));if(d>revealRadius)discard;}\n")
-    }
-    mat.customProgramCacheKey = ()=>"reveal"; mat.needsUpdate = true
-  }
-
-  function createWireClones(meshes, uni) {
-    const mat = new THREE.MeshBasicMaterial({color:0xff7700,wireframe:true,transparent:true,opacity:0.6,depthWrite:false})
-    injectRevealShader(mat, uni); reveal.wireframeMat = mat
-    for (const m of meshes) {
-      const c = new THREE.Mesh(m.geometry, mat)
-      c.position.copy(m.position); c.rotation.copy(m.rotation); c.scale.copy(m.scale); c.renderOrder=-1
-      ;(m.parent||m).add(c); reveal.wireframeClones.push(c)
-    }
-  }
-
-  function cleanupReveal() {
-    for (const c of reveal.wireframeClones) c.parent?.remove(c)
-    reveal.wireframeClones.length=0
-    if (reveal.wireframeMat){reveal.wireframeMat.dispose();reveal.wireframeMat=null}
-    for (const m of [droneMats.solarPanel,droneMats.carbonMatte,droneMats.tailMatte]) {
-      m.onBeforeCompile=()=>{}; m.customProgramCacheKey=()=>""; m.needsUpdate=true
-    }
-    reveal.active=false
-  }
 
   // ── UV generation ─────────────────────────────────────────────────────────
   function genUVs(mesh, tpu) {
@@ -732,14 +669,6 @@ window.addEventListener("load", () => {
     for(const m of meshes){if(tailNames.has(m.name))m.material=droneMats.tailMatte}
 
     droneObject=obj
-    const rb=new THREE.Box3().setFromObject(obj)
-    reveal.maxRadius=(Math.max(Math.abs(rb.min.x),Math.abs(rb.max.x),Math.abs(rb.min.z),Math.abs(rb.max.z))||9)*1.05
-    injectRevealShader(droneMats.solarPanel,reveal.solidUniforms)
-    injectRevealShader(droneMats.carbonMatte,reveal.solidUniforms)
-    injectRevealShader(droneMats.tailMatte,reveal.solidUniforms)
-    createWireClones(meshes,reveal.wireUniforms)
-    reveal.solidUniforms.revealRadius.value=0; reveal.wireUniforms.revealRadius.value=0
-    reveal.startTime=clock.elapsedTime; reveal.active=true
   })
 
   // ── ScrollTrigger ─────────────────────────────────────────────────────────
@@ -796,20 +725,6 @@ window.addEventListener("load", () => {
         droneBaseRot.x+Math.cos(t*(2*Math.PI)/bobCfg.bobPeriod)*stall*bobCfg.pitchAmp,
         droneBaseRot.y, droneBaseRot.z
       )
-    }
-
-    // Reveal
-    if(reveal.active){
-      const el=t-reveal.startTime
-      const wl=Math.min(el/reveal.wireframeDuration,1)
-      reveal.wireUniforms.revealRadius.value=easeOut(wl)*reveal.maxRadius
-      reveal.solidUniforms.revealRadius.value=0
-      if(wl>=1){
-        const fl=Math.min((el-reveal.wireframeDuration)/reveal.fadeOutDuration,1)
-        reveal.solidUniforms.revealRadius.value=easeOut(fl)*reveal.maxRadius*1.05
-        if(reveal.wireframeMat)reveal.wireframeMat.opacity=0.6*(1-easeOut(fl))
-        if(fl>=1)cleanupReveal()
-      }
     }
 
     // ── Two-pass render (drone-about-v6 exact approach) ────────────────────
