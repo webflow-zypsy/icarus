@@ -557,7 +557,7 @@ window.addEventListener("load", () => {
   const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.80)
   scene.add(hemiLight)
   const _dayHemiColor    = new THREE.Color('#8eafc2')
-  const _nightHemiColor  = new THREE.Color('#284067')
+  const _nightHemiColor  = new THREE.Color('#173a72')
   const _dayHemiGround   = new THREE.Color('#584838')
   const _nightHemiGround = new THREE.Color('#0a0f1a')
 
@@ -769,20 +769,20 @@ window.addEventListener("load", () => {
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
-    hemiLight.intensity = 0.80 + nightT * 0.30
+    hemiLight.intensity = 0.80 + nightT * 0.00
     scene.environmentIntensity = 1.00 - nightT * 0.75
     nightKeyLight.intensity  = nightT * 1.60
-    nightFillLight.intensity = nightT * 0.55
+    nightFillLight.intensity = nightT * 0.00
     if (scene.environmentRotation) {
-      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (-123 * Math.PI / 180)
+      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (0 * Math.PI / 180)
     }
+    renderer.toneMappingExposure = 3.20 - nightT * 0.00
 
     // ── Two-pass render ────────────────────────────────────────────────────
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
     renderer.render(skyScene, camera)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.20 - nightT * 1.00
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
