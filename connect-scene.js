@@ -563,10 +563,10 @@ window.addEventListener("load", () => {
 
   // Cool blue-grey directional light — inactive at day (intensity 0), fades in at night
   // to replace the warm HDR contribution and keep the drone bright + correctly toned
-  const nightKeyLight = new THREE.DirectionalLight(0x7a9ec4, 0.0) // cool blue-white
+  const nightKeyLight = new THREE.DirectionalLight(0xb8d4e8, 0.0) // softer blue-white
   nightKeyLight.position.set(-3, 4, 2)
   scene.add(nightKeyLight)
-  const nightFillLight = new THREE.DirectionalLight(0x4a6080, 0.0) // softer blue fill from below
+  const nightFillLight = new THREE.DirectionalLight(0x6a8aaa, 0.0) // blue fill from below
   nightFillLight.position.set(2, -2, -3)
   scene.add(nightFillLight)
 
@@ -774,8 +774,8 @@ window.addEventListener("load", () => {
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
     scene.environmentIntensity = 1.0 - nightT          // 1.0 → 0.0
-    nightKeyLight.intensity  = nightT * 2.2            // cool key ramps in
-    nightFillLight.intensity = nightT * 0.9            // soft blue fill from below
+    nightKeyLight.intensity  = nightT * 1.2            // softer key — less hotspot
+    nightFillLight.intensity = nightT * 1.4            // stronger fill for even wing coverage
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (40 * Math.PI / 180)
     }
