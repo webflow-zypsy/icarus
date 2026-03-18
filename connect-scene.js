@@ -760,9 +760,13 @@ window.addEventListener("load", () => {
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
     renderer.render(skyScene, camera)
-    // Pass 2: drone + clouds — ACESFilmic; exposure drops 3.2 → 0.6 as night fades in
+    // Pass 2: drone + clouds — ACESFilmic; exposure drops 3.2 → 0.6 and env
+    // rotates +160° so the warm HDR key light swings away, cooling the drone.
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 3.2 - nightT * 2.6
+    if (scene.environmentRotation) {
+      scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (160 * Math.PI / 180)
+    }
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
