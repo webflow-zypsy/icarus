@@ -559,7 +559,7 @@ window.addEventListener("load", () => {
   const _dayHemiColor   = new THREE.Color(0x8eafc2) // matches day hemi sky colour
   const _nightHemiColor = new THREE.Color(0x2a4a7f) // cool deep blue for night
   const _dayHemiGround   = new THREE.Color(0x584838) // matches day hemi ground colour
-  const _nightHemiGround = new THREE.Color(0x080808) // near-black for night
+  const _nightHemiGround = new THREE.Color(0x0a0f1a) // dark blue for night
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
   const pmrem = new THREE.PMREMGenerator(renderer)
