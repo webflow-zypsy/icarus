@@ -1,13 +1,13 @@
 /**
- * background-scene.js  —  ES Module
+ * hero-background-scene.js  —  ES Module
  * Mounts Three.js background scene into #scene-background
  * Scroll driven by GSAP ScrollTrigger on #scenes-track
- * Load as: <script type="module" src="...background-scene.js"></script>
+ * Load as: <script type="module" src="...hero-background-scene.js"></script>
  */
 
 // ─── ASSET URL ────────────────────────────────────────────────────────────────
 const BG_ASSETS = {
-  image: "https://webflow-zypsy.github.io/icarus/background-v2.webp",
+  image: "https://webflow-zypsy.github.io/icarus/hero-background-image.webp",
 }
 
 // ─── LOOP CONFIG ──────────────────────────────────────────────────────────────
