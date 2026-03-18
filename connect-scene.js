@@ -563,11 +563,11 @@ window.addEventListener("load", () => {
 
   // Cool blue-grey directional light — inactive at day (intensity 0), fades in at night
   // to replace the warm HDR contribution and keep the drone bright + correctly toned
-  const nightKeyLight = new THREE.DirectionalLight(0xc8dff0, 0.0) // crisp blue-white rim
-  nightKeyLight.position.set(-1, 6, 3)  // higher + slightly front to catch wing top edge
+  const nightKeyLight = new THREE.DirectionalLight(0xa0c0d8, 0.0) // soft blue-grey, grazing angle
+  nightKeyLight.position.set(3, 2, 4)  // side-front to graze the leading edge
   scene.add(nightKeyLight)
-  const nightFillLight = new THREE.DirectionalLight(0x6a8aaa, 0.0) // blue fill from below
-  nightFillLight.position.set(2, -2, -3)
+  const nightFillLight = new THREE.DirectionalLight(0x4a6080, 0.0) // dim blue fill from below
+  nightFillLight.position.set(-2, -3, -2)
   scene.add(nightFillLight)
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
@@ -773,10 +773,10 @@ window.addEventListener("load", () => {
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
-    hemiLight.intensity = 0.8 + nightT * 0.8          // boost hemi at night for wing lift
+    hemiLight.intensity = 0.8 + nightT * 0.3          // very slight boost only
     scene.environmentIntensity = 1.0 - nightT          // 1.0 → 0.0
-    nightKeyLight.intensity  = nightT * 2.8            // crisp top-edge highlight on wings
-    nightFillLight.intensity = nightT * 1.4            // blue fill keeps underside readable
+    nightKeyLight.intensity  = nightT * 1.0            // gentle grazing highlight
+    nightFillLight.intensity = nightT * 0.5            // barely-there underside fill
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (40 * Math.PI / 180)
     }
