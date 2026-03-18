@@ -556,10 +556,19 @@ window.addEventListener("load", () => {
   // ── Lighting ──────────────────────────────────────────────────────────────
   const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.8)
   scene.add(hemiLight)
-  const _dayHemiColor   = new THREE.Color(0x8eafc2) // matches day hemi sky colour
-  const _nightHemiColor = new THREE.Color(0x2a4a7f) // cool deep blue for night
-  const _dayHemiGround   = new THREE.Color(0x584838) // matches day hemi ground colour
-  const _nightHemiGround = new THREE.Color(0x0a0f1a) // dark blue for night
+  const _dayHemiColor    = new THREE.Color(0x8eafc2)
+  const _nightHemiColor  = new THREE.Color(0x2a4a7f)
+  const _dayHemiGround   = new THREE.Color(0x584838)
+  const _nightHemiGround = new THREE.Color(0x0a0f1a)
+
+  // Cool blue-grey directional light — inactive at day (intensity 0), fades in at night
+  // to replace the warm HDR contribution and keep the drone bright + correctly toned
+  const nightKeyLight = new THREE.DirectionalLight(0x7a9ec4, 0.0) // cool blue-white
+  nightKeyLight.position.set(-3, 4, 2)
+  scene.add(nightKeyLight)
+  const nightFillLight = new THREE.DirectionalLight(0x4a6080, 0.0) // softer blue fill from below
+  nightFillLight.position.set(2, -2, -3)
+  scene.add(nightFillLight)
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
   const pmrem = new THREE.PMREMGenerator(renderer)
@@ -759,12 +768,14 @@ window.addEventListener("load", () => {
     for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
     // ── Drone night lighting ───────────────────────────────────────────────
-    // Hemi colours shift cool/blue — env and exposure barely touched so the
-    // drone stays bright and readable, matching the reference image.
+    // Env intensity goes fully to 0 at night — it's an HDR with baked warm
+    // tones that can't be recoloured. Cool directional lights replace it.
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
-    scene.environmentIntensity = 1.0 - nightT * 0.35  // 1.0 → 0.65, stays mostly lit
+    scene.environmentIntensity = 1.0 - nightT          // 1.0 → 0.0
+    nightKeyLight.intensity  = nightT * 2.2            // cool key ramps in
+    nightFillLight.intensity = nightT * 0.9            // soft blue fill from below
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (40 * Math.PI / 180)
     }
