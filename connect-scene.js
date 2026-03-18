@@ -554,7 +554,10 @@ window.addEventListener("load", () => {
   mountEl.appendChild(renderer.domElement)
 
   // ── Lighting ──────────────────────────────────────────────────────────────
-  scene.add(new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.8))
+  const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.8)
+  scene.add(hemiLight)
+  const _dayHemiColor   = new THREE.Color(0x8eafc2) // matches day hemi sky colour
+  const _nightHemiColor = new THREE.Color(0x2a4a7f) // cool deep blue for night
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
   const pmrem = new THREE.PMREMGenerator(renderer)
@@ -746,7 +749,6 @@ window.addEventListener("load", () => {
     }
 
     // ── Day → night crossfade — 50% → 100% scroll ─────────────────────────
-    // Fades the night image (sphere 2) in on top of the day image (sphere 1).
     const nightT = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
     skyMat2.uniforms.uOpacity.value = nightT
 
@@ -754,19 +756,22 @@ window.addEventListener("load", () => {
     const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
     for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
-    // ── Two-pass render ────────────────────────────────────────────────────
-    // Pass 1: sky — NoToneMapping so images render at true colours
+    // ── Drone night lighting — matches reference: subtle, cool, not dark ──
+    // Exposure: 3.2 → 2.2 (gentle dimming only)
+    // Hemisphere sky colour: warm steel-blue → cool deep blue
+    // Env rotation: small shift to move warmest HDR light off the drone
     renderer.domElement.style.filter = ""
+    hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
+    if (scene.environmentRotation) {
+      scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (80 * Math.PI / 180)
+    }
+
+    // ── Two-pass render ────────────────────────────────────────────────────
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = true
     renderer.render(skyScene, camera)
-    // Pass 2: drone + clouds — ACESFilmic; exposure drops 3.2 → 0.6 and env
-    // rotates +160° so the warm HDR key light swings away, cooling the drone.
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.2 - nightT * 2.6
-    if (scene.environmentRotation) {
-      scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (160 * Math.PI / 180)
-    }
+    renderer.toneMappingExposure = 3.2 - nightT * 1.0
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
