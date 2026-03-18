@@ -1,4 +1,4 @@
-/**
+\/**
  * connect-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
  * Single file for both background scenes:
@@ -561,7 +561,7 @@ window.addEventListener("load", () => {
   const _dayHemiGround   = new THREE.Color('#584838')
   const _nightHemiGround = new THREE.Color('#0a0f1a')
 
-  const nightKeyLight = new THREE.DirectionalLight('#99d3ff', 0.0)
+  const nightKeyLight = new THREE.DirectionalLight('#bdfffb', 0.0)
   nightKeyLight.position.set(-3.50, 2.50, 3.50)
   scene.add(nightKeyLight)
   const nightFillLight = new THREE.DirectionalLight('#4a6080', 0.0)
@@ -776,7 +776,7 @@ window.addEventListener("load", () => {
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (0 * Math.PI / 180)
     }
-    renderer.toneMappingExposure = 3.20 - nightT * 0.00
+    renderer.toneMappingExposure = 3.20 - nightT * 1.35
 
     // ── Two-pass render ────────────────────────────────────────────────────
     renderer.toneMapping = THREE.NoToneMapping
