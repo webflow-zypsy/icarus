@@ -558,6 +558,8 @@ window.addEventListener("load", () => {
   scene.add(hemiLight)
   const _dayHemiColor   = new THREE.Color(0x8eafc2) // matches day hemi sky colour
   const _nightHemiColor = new THREE.Color(0x2a4a7f) // cool deep blue for night
+  const _dayHemiGround   = new THREE.Color(0x584838) // matches day hemi ground colour
+  const _nightHemiGround = new THREE.Color(0x080808) // near-black for night
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
   const pmrem = new THREE.PMREMGenerator(renderer)
@@ -762,6 +764,7 @@ window.addEventListener("load", () => {
     // Env rotation: small shift to move warmest HDR light off the drone
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
+    hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (80 * Math.PI / 180)
     }
