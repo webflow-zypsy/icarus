@@ -765,6 +765,8 @@ window.addEventListener("load", () => {
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
+    // Fade out HDR env so its warm light stops hitting underside/tail faces
+    scene.environmentIntensity = 1.0 - nightT * 0.85
     if (scene.environmentRotation) {
       scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (80 * Math.PI / 180)
     }
