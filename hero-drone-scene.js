@@ -1,5 +1,5 @@
 /**
- * drone-scene.js  —  ES Module
+ * hero-drone-scene.js  —  ES Module
  * ─────────────────────────────────────────────────────────────────────────────
  * Mounts a Three.js drone scene into the #scene-drone element.
  * Scroll is driven by GSAP ScrollTrigger watching #scenes-track.
@@ -16,7 +16,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 const DRONE_ASSETS = {
   hdr:   "https://webflow-zypsy.github.io/icarus/green-512.hdr",
-  model: "https://webflow-zypsy.github.io/icarus/apollo-draco.glb",
+  model: "https://webflow-zypsy.github.io/icarus/apollo-drone.glb",
 }
 
 import * as THREE     from "three"
