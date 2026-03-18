@@ -770,11 +770,11 @@ window.addEventListener("load", () => {
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
     hemiLight.intensity = 0.80 + nightT * 0.30
-    scene.environmentIntensity = 1.00 - nightT * 0.80
-    nightKeyLight.intensity  = nightT * 2.55
+    scene.environmentIntensity = 1.00 - nightT * 0.75
+    nightKeyLight.intensity  = nightT * 1.60
     nightFillLight.intensity = nightT * 0.55
     if (scene.environmentRotation) {
-      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (52 * Math.PI / 180)
+      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (-123 * Math.PI / 180)
     }
 
     // ── Two-pass render ────────────────────────────────────────────────────
@@ -782,7 +782,7 @@ window.addEventListener("load", () => {
     renderer.autoClear = true
     renderer.render(skyScene, camera)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.20 - nightT * 0.65
+    renderer.toneMappingExposure = 3.20 - nightT * 1.00
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
