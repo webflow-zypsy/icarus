@@ -316,13 +316,14 @@ window.addEventListener("load", () => {
       uImageAspect: { value: 16.0 / 9.0 },
       uHOffset:     { value: 0.0 },
       uVOffset:     { value: 0.0 },
+      uExposure:    { value: 1.0 }, // driven by scroll to darken sky in sync with drone pass
     },
     vertexShader: `
       varying vec3 vLocalPos;
       void main(){ vLocalPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
     `,
     fragmentShader: `
-      uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
+      uniform sampler2D tImage; uniform float uOpacity,uExposure; uniform vec3 uCenterDir;
       uniform float uHFov,uImageAspect,uHOffset,uVOffset;
       varying vec3 vLocalPos;
       void main(){
@@ -337,7 +338,8 @@ window.addEventListener("load", () => {
         float v=0.5+el/(2.0*vv)+uVOffset;
         if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
         float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-        gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+        vec3 col=texture2D(tImage,vec2(u,v)).rgb*uExposure;
+        gl_FragColor=vec4(col,uOpacity*ef);
       }
     `,
     side: THREE.BackSide, transparent: true, depthWrite: false,
@@ -730,16 +732,20 @@ window.addEventListener("load", () => {
     }
 
     // ── Day → night transition driven by scroll ────────────────────────────
-    // Starts at 60% scroll, completes at 100%. CSS filter on the canvas so
-    // the image desaturates + cools + dims rather than fading to black.
-    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.6, 1.0)
-    const sat        = 1.0 - nightT * 0.75   // 100% → 25% saturation
-    const brightness = 1.0 - nightT * 0.45   // 100% → 55% brightness
-    const hueRot     = nightT * 200           // warm tones rotate toward blue
-    renderer.domElement.style.filter =
-      `saturate(${sat}) brightness(${brightness}) hue-rotate(${hueRot}deg)`
-    // Pull exposure down from 3.2 → 1.8 so the drone darkens in tandem
-    const currentExposure = 3.2 - nightT * 1.4
+    // Mirrors drone-about-v6: drop exposure sharply + rotate env so HDR
+    // lighting swings to the dark side. ACES naturally desaturates + crushes
+    // the image as exposure falls — no CSS filter needed.
+    const nightT = THREE.MathUtils.smoothstep(smoothT, 0.5, 1.0)
+    renderer.domElement.style.filter = ""
+    // Exposure: 3.2 (day) → 0.4 (night) — ACES makes this look very dark/blue
+    const currentExposure = 3.2 - nightT * 2.8
+    // Sky brightness tracks the same curve so background darkens in sync
+    skyMat.uniforms.uExposure.value = 1.0 - nightT * 0.88
+    // Env rotation: shift Y by +120° so HDR warm key light swings away
+    if (scene.environmentRotation) {
+      const baseY = 1960 * Math.PI / 180
+      scene.environmentRotation.y = baseY + nightT * (120 * Math.PI / 180)
+    }
 
     // ── Cloud fade — 80% → 100% scroll ────────────────────────────────────
     const cloudFade = 1.0 - THREE.MathUtils.smoothstep(smoothT, 0.8, 1.0)
