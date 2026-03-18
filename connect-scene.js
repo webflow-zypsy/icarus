@@ -554,20 +554,18 @@ window.addEventListener("load", () => {
   mountEl.appendChild(renderer.domElement)
 
   // ── Lighting ──────────────────────────────────────────────────────────────
-  const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.8)
+  const hemiLight = new THREE.HemisphereLight(0x8eafc2, 0x584838, 0.80)
   scene.add(hemiLight)
-  const _dayHemiColor    = new THREE.Color(0x8eafc2)
-  const _nightHemiColor  = new THREE.Color(0x2a4a7f)
-  const _dayHemiGround   = new THREE.Color(0x584838)
-  const _nightHemiGround = new THREE.Color(0x0a0f1a)
+  const _dayHemiColor    = new THREE.Color('#8eafc2')
+  const _nightHemiColor  = new THREE.Color('#284067')
+  const _dayHemiGround   = new THREE.Color('#584838')
+  const _nightHemiGround = new THREE.Color('#0a0f1a')
 
-  // Cool blue-grey directional light — inactive at day (intensity 0), fades in at night
-  // to replace the warm HDR contribution and keep the drone bright + correctly toned
-  const nightKeyLight = new THREE.DirectionalLight(0xa0c0d8, 0.0) // soft blue-grey, grazing angle
-  nightKeyLight.position.set(3, 2, 4)  // side-front to graze the leading edge
+  const nightKeyLight = new THREE.DirectionalLight('#99d3ff', 0.0)
+  nightKeyLight.position.set(-3.50, 2.50, 3.50)
   scene.add(nightKeyLight)
-  const nightFillLight = new THREE.DirectionalLight(0x4a6080, 0.0) // dim blue fill from below
-  nightFillLight.position.set(-2, -3, -2)
+  const nightFillLight = new THREE.DirectionalLight('#4a6080', 0.0)
+  nightFillLight.position.set(-2.00, -3.00, -2.00)
   scene.add(nightFillLight)
 
   // ── HDR env — drone-about-v6 exact rotation ───────────────────────────────
@@ -768,17 +766,15 @@ window.addEventListener("load", () => {
     for(const cm of cloudMeshes) cm.material.uniforms.uOpacity.value = (cm._baseOpacity ?? 0.85) * cloudFade
 
     // ── Drone night lighting ───────────────────────────────────────────────
-    // Env intensity goes fully to 0 at night — it's an HDR with baked warm
-    // tones that can't be recoloured. Cool directional lights replace it.
     renderer.domElement.style.filter = ""
     hemiLight.color.copy(_dayHemiColor).lerp(_nightHemiColor, nightT)
     hemiLight.groundColor.copy(_dayHemiGround).lerp(_nightHemiGround, nightT)
-    hemiLight.intensity = 0.8 + nightT * 0.3          // very slight boost only
-    scene.environmentIntensity = 1.0 - nightT          // 1.0 → 0.0
-    nightKeyLight.intensity  = nightT * 1.0            // gentle grazing highlight
-    nightFillLight.intensity = nightT * 0.5            // barely-there underside fill
+    hemiLight.intensity = 0.80 + nightT * 0.30
+    scene.environmentIntensity = 1.00 - nightT * 0.80
+    nightKeyLight.intensity  = nightT * 2.55
+    nightFillLight.intensity = nightT * 0.55
     if (scene.environmentRotation) {
-      scene.environmentRotation.y = (1960 * Math.PI / 180) + nightT * (40 * Math.PI / 180)
+      scene.environmentRotation.y = (386 * Math.PI / 180) + nightT * (52 * Math.PI / 180)
     }
 
     // ── Two-pass render ────────────────────────────────────────────────────
@@ -786,7 +782,7 @@ window.addEventListener("load", () => {
     renderer.autoClear = true
     renderer.render(skyScene, camera)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 3.2 - nightT * 0.4  // 3.2 → 2.8, barely dimmed
+    renderer.toneMappingExposure = 3.20 - nightT * 0.65
     renderer.autoClear = false
     renderer.render(scene, camera)
     renderer.autoClear = true
