@@ -33,6 +33,7 @@ import * as THREE     from "three"
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
+import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
 // ─── Desktop-only guard ───────────────────────────────────────────────────────
 if (!window.matchMedia("(min-width: 992px)").matches) {
@@ -55,6 +56,11 @@ window.addEventListener("load", () => {
 
     function initHeroBackground() {
 
+  // ── WebGL availability check ────────────────────────────────────────────────
+  if (!webglAvailable()) {
+    activateFallback('scene-background')
+    return
+  }
 
   const mountEl = document.getElementById("scene-background")
   if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
@@ -71,7 +77,14 @@ window.addEventListener("load", () => {
   const initH  = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(70, initW/initH, 0.1, 1000)
 
-  const renderer = new THREE.WebGLRenderer({ antialias: false })
+  let renderer
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false })
+  } catch (e) {
+    console.warn("[bg-scene] WebGLRenderer threw:", e.message)
+    activateFallback('scene-background')
+    return
+  }
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.NoToneMapping
@@ -288,6 +301,12 @@ window.addEventListener("load", () => {
     setTimeout(initConnectScene, 500)
 
     function initConnectScene() {
+
+  // ── WebGL availability check ────────────────────────────────────────────────
+  if (!webglAvailable()) {
+    activateFallback('connect-drone')
+    return
+  }
 
   // Mount into #connect-drone (z-index 2 — sits above #connect-background)
   const mountEl = document.getElementById("connect-drone")
@@ -543,7 +562,14 @@ window.addEventListener("load", () => {
   const _camTarget = new THREE.Vector3(0.075, 0.123, 0)
 
   // ── Single combined renderer ──────────────────────────────────────────────
-  const renderer = new THREE.WebGLRenderer({ antialias: true })
+  let renderer
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true })
+  } catch (e) {
+    console.warn("[connect-scene] WebGLRenderer threw:", e.message)
+    activateFallback('connect-drone')
+    return
+  }
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.outputColorSpace    = THREE.SRGBColorSpace
