@@ -17,6 +17,7 @@ const LOOP = {
 }
 
 import * as THREE from "three"
+import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
 // ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
 // The scene is skipped entirely on viewports narrower than 1024 px.
@@ -54,6 +55,12 @@ window.addEventListener("load", () => {
 
   function initScene() {
 
+  // ── WebGL availability check ──────────────────────────────────────────────
+  if (!webglAvailable()) {
+    activateFallback('scene-background')
+    return
+  }
+
   const mountEl = document.getElementById("scene-background")
   if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
 
@@ -69,7 +76,14 @@ window.addEventListener("load", () => {
   const initH  = mountEl.clientHeight || window.innerHeight
   const camera = new THREE.PerspectiveCamera(70, initW/initH, 0.1, 1000)
 
-  const renderer = new THREE.WebGLRenderer({ antialias: false })
+  let renderer
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false })
+  } catch (e) {
+    console.warn("[bg-scene] WebGLRenderer threw:", e.message)
+    activateFallback('scene-background')
+    return
+  }
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.NoToneMapping
