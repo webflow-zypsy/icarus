@@ -23,6 +23,7 @@ import * as THREE     from "three"
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js"
+import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
 // ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
 // The scene is skipped entirely on viewports narrower than 1024 px.
@@ -41,6 +42,12 @@ window.addEventListener("load", () => {
     console.error("[drone-scene] GSAP / ScrollTrigger not found."); return
   }
   gsap.registerPlugin(ScrollTrigger)
+
+  // ── WebGL availability check ────────────────────────────────────────────────
+  if (!webglAvailable()) {
+    activateFallback('scene-drone')
+    return
+  }
 
   const mountEl = document.getElementById("scene-drone")
   if (!mountEl) { console.error("[drone-scene] #scene-drone not found."); return }
@@ -469,7 +476,14 @@ window.addEventListener("load", () => {
   // RENDERER
   // toneMappingExposure — overall brightness (higher = brighter)
   // ═══════════════════════════════════════════════════════════════════════════
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  let renderer
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  } catch (e) {
+    console.warn("[drone-scene] WebGLRenderer threw:", e.message)
+    activateFallback('scene-drone')
+    return
+  }
   renderer.setSize(initW, initH)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.outputColorSpace    = THREE.SRGBColorSpace
