@@ -19,8 +19,18 @@ const LOOP = {
 import * as THREE from "three"
 import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
+// ─── Hero animation trigger ───────────────────────────────────────────────────
+// Called exactly once — either when the bg scene finishes its reveal, or when
+// the WebGL fallback activates. The guard on window.__heroAnimTriggered ensures
+// only the first caller wins, regardless of which path fires first.
+function triggerHeroAnimation() {
+  if (window.__heroAnimTriggered) return
+  window.__heroAnimTriggered = true
+  document.querySelector('.home-hero_animation-trigger')?.click()
+}
+
 // ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
-// The scene is skipped entirely on viewports narrower than 1024 px.
+// The scene is skipped entirely on viewports narrower than 992 px.
 // If the user resizes into a desktop viewport after load, a full page reload
 // is required (Three.js scenes cannot be hot-initialised mid-session).
 const DESKTOP_MQ = window.matchMedia("(min-width: 992px)")
@@ -265,6 +275,8 @@ window.addEventListener("load", () => {
           scene.remove(topoMesh); topoGeo.dispose(); topoMat.dispose()
           topoMesh = topoGeo = topoMat = null
         }
+        // ── Scene fully revealed — trigger hero animation ──────────────────────
+        triggerHeroAnimation()
       }
 
     } else if (anim.phase === "running" && skyA) {
