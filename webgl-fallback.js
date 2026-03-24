@@ -1,162 +1,68 @@
 /**
  * webgl-fallback.js  —  ES Module
- * ─────────────────────────────────────────────────────────────────────────────
- * WebGL capability detection and per-scene fallback activation for the three
- * Icarus Three.js scenes:
+ * WebGL detection and per-scene fallback activation.
  *
- *   • #scene-background  (hero sky / landscape background)
- *   • #scene-drone       (hero drone model)
- *   • #connect-drone     (connect section drone + sky)
- *
- * HOW FALLBACKS WORK
- * ───────────────────
- * In Webflow, add the attribute [data-threejs-fallback] to any element you
- * want shown when a scene fails. Place it inside or alongside the scene's
- * mount div. The script finds every [data-threejs-fallback] element that is
- * a descendant of, or shares a parent/grandparent container with, the failed
- * mount div, then sets:
- *
- *   display:    block
- *   opacity:    1
- *   visibility: visible
- *
- * Multiple fallback elements per scene are supported (e.g. a background image
- * AND a foreground drone image, both tagged [data-threejs-fallback]).
- *
- * USAGE IN SCENE FILES
- * ─────────────────────
- * Import at the top of each scene file, before any Three.js imports:
- *
+ * Usage in each scene file:
  *   import { webglAvailable, activateFallback } from "./webgl-fallback.js"
- *
- * At the start of each init function add an early-exit guard:
  *
  *   if (!webglAvailable()) { activateFallback("scene-background"); return }
  *
- * Wrap each new THREE.WebGLRenderer(...) in a try/catch:
- *
- *   let renderer
  *   try {
  *     renderer = new THREE.WebGLRenderer({ antialias: false })
  *   } catch (e) {
- *     console.warn("[scene] WebGLRenderer threw:", e.message)
- *     activateFallback("scene-background")
- *     return
+ *     activateFallback("scene-background"); return
  *   }
  *
- * HERO ANIMATION TRIGGER
- * ───────────────────────
- * When the background scene fallback activates (WebGL unavailable or renderer
- * threw), this module fires triggerHeroAnimation() so the hero UI still
- * animates in with the fallback image. The guard on window.__heroAnimTriggered
- * ensures the click fires at most once, even if activateFallback() is called
- * for multiple scene IDs in the same session.
+ * Fallbacks: add [data-threejs-fallback] to any element that should appear
+ * when a scene fails. The script searches inside the mount div, then its
+ * parent and grandparent (covers typical Webflow nesting).
  *
- * PROBE TIMING
- * ─────────────
- * probeWebGL() runs automatically at module evaluation time — before any
- * scene init fires — so the result is always ready with zero async overhead.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Auto-probes WebGL at module evaluation time — result is cached.
  */
 
-// ─── Internal probe state ─────────────────────────────────────────────────────
-// null  = not yet run
-// true  = WebGL is functional
-// false = WebGL is unavailable or broken
 let _probeResult = null
 
-// ─── Hero animation trigger ───────────────────────────────────────────────────
-// Fires .home-hero_animation-trigger click exactly once across all callers.
-// The guard on window.__heroAnimTriggered prevents duplicate fires if both
-// the scene file and the fallback module end up calling this in the same run.
 function triggerHeroAnimation() {
   if (window.__heroAnimTriggered) return
   window.__heroAnimTriggered = true
   document.querySelector('.home-hero_animation-trigger')?.click()
 }
 
-// ─── probeWebGL() ─────────────────────────────────────────────────────────────
 /**
- * Silently tests WebGL availability using a throwaway canvas.
- * Covers all common failure modes:
- *   - getContext() returns null (no GPU / driver disabled)
- *   - context is immediately lost (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS)
- *   - first draw call returns a GL error
- *
- * @returns {boolean}  true if WebGL appears functional, false otherwise.
- *                     Repeated calls return the cached result.
+ * Tests WebGL with a throwaway canvas. Covers: null context, immediate
+ * context loss (driver exhaustion), and first-draw GL errors.
+ * Caches and returns the result on repeat calls.
  */
 export function probeWebGL() {
   if (_probeResult !== null) return _probeResult
-
   try {
     const canvas = document.createElement("canvas")
-    // Prefer WebGL2; fall back to WebGL1 / experimental
-    const gl = (
-      canvas.getContext("webgl2") ||
-      canvas.getContext("webgl") ||
-      canvas.getContext("experimental-webgl")
-    )
-
-    if (!gl) {
-      return _fail("getContext() returned null — no WebGL support")
-    }
-
-    // Immediately-lost context = driver exhaustion (the Firefox/macOS error)
-    if (typeof gl.isContextLost === "function" && gl.isContextLost()) {
-      return _fail("context lost immediately after creation (driver exhausted)")
-    }
-
-    // Minimal draw operation to confirm the driver is actually alive
-    gl.clearColor(0, 0, 0, 1)
-    gl.clear(gl.COLOR_BUFFER_BIT)
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
+    if (!gl) return _fail("getContext() returned null")
+    if (typeof gl.isContextLost === "function" && gl.isContextLost()) return _fail("context lost immediately after creation")
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT)
     const err = gl.getError()
-    if (err !== gl.NO_ERROR) {
-      return _fail(`gl.getError() = ${err} on first clear`)
-    }
-
-    // Release GPU resources before discarding the canvas
+    if (err !== gl.NO_ERROR) return _fail(`gl.getError() = ${err}`)
     const loseCtx = gl.getExtension("WEBGL_lose_context")
     if (loseCtx) loseCtx.loseContext()
-
     _probeResult = true
     return true
-
   } catch (e) {
     return _fail(e.message)
   }
 }
 
-/**
- * Returns the cached probe result, running the probe first if needed.
- * Safe to call at any time; never throws.
- *
- * @returns {boolean}
- */
+/** Returns cached probe result, running the probe first if needed. */
 export function webglAvailable() {
   if (_probeResult === null) probeWebGL()
   return _probeResult === true
 }
 
-// ─── activateFallback(mountId?) ───────────────────────────────────────────────
 /**
- * Reveals every [data-threejs-fallback] element associated with a scene.
- *
- * The search walks the DOM in three passes:
- *   1. Inside the mount div itself.
- *   2. Siblings within the mount's parent container.
- *   3. Siblings within the mount's grandparent container (handles typical
- *      Webflow nesting where the fallback image lives one wrapper level up).
- *
- * Any <canvas> elements already inserted by Three.js are hidden to prevent
- * a blank transparent rectangle sitting above the fallback content.
- *
- * If the failing scene is #scene-background, triggerHeroAnimation() is called
- * so the hero UI animates in even without the Three.js scene.
- *
- * @param {string} [mountId]  The id of the Three.js mount div (e.g.
- *                            "scene-background"). Omit to activate fallbacks
- *                            for ALL three scenes at once.
+ * Reveals [data-threejs-fallback] elements for the given mount id.
+ * Pass no argument to activate fallbacks for all three scenes at once.
+ * Also hides any canvas already appended by Three.js.
+ * Triggers the hero animation if the failing scene is #scene-background.
  */
 export function activateFallback(mountId) {
   const ids = mountId
@@ -165,74 +71,38 @@ export function activateFallback(mountId) {
 
   for (const id of ids) {
     const mount = document.getElementById(id)
-    if (!mount) {
-      console.warn(`[webgl-fallback] Mount #${id} not found in DOM`)
-      continue
-    }
+    if (!mount) { console.warn(`[webgl-fallback] Mount #${id} not found`); continue }
 
-    // Hide any canvas Three.js may have already appended
-    mount.querySelectorAll("canvas").forEach(c => {
-      c.style.display = "none"
-    })
+    mount.querySelectorAll("canvas").forEach(c => { c.style.display = "none" })
 
-    // Collect all [data-threejs-fallback] elements relevant to this scene
     const fallbacks = _findFallbacks(mount)
-
     if (fallbacks.length === 0) {
       console.warn(`[webgl-fallback] No [data-threejs-fallback] elements found for #${id}`)
     } else {
       for (const el of fallbacks) {
-        el.style.display    = "block"
-        el.style.opacity    = "1"
-        el.style.visibility = "visible"
+        el.style.display = "block"; el.style.opacity = "1"; el.style.visibility = "visible"
       }
-      console.info(`[webgl-fallback] ${fallbacks.length} fallback element(s) activated for #${id}`)
+      console.info(`[webgl-fallback] ${fallbacks.length} fallback(s) activated for #${id}`)
     }
 
-    // ── Hero animation trigger ─────────────────────────────────────────────────
-    // Only fires for the background scene — that's the one whose load sequence
-    // normally triggers the hero animation. The guard ensures it fires at most
-    // once even if activateFallback() is called multiple times or without an id.
-    if (id === "scene-background") {
-      triggerHeroAnimation()
-    }
+    if (id === "scene-background") triggerHeroAnimation()
   }
 }
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-/**
- * Collects all [data-threejs-fallback] elements associated with a mount div.
- * Searches inside the mount, then in the parent and grandparent containers
- * to cover typical Webflow section nesting patterns.
- *
- * @param   {HTMLElement} mount
- * @returns {HTMLElement[]}
- */
 function _findFallbacks(mount) {
-  const results = []
-  const seen    = new Set()
-
+  const results = [], seen = new Set()
   function collect(root) {
     if (!root) return
     root.querySelectorAll("[data-threejs-fallback]").forEach(el => {
       if (!seen.has(el)) { seen.add(el); results.push(el) }
     })
   }
-
-  collect(mount)                              // children of the mount div
-  collect(mount.parentElement)               // siblings of the mount div
-  collect(mount.parentElement?.parentElement) // one level further up
-
+  collect(mount)
+  collect(mount.parentElement)
+  collect(mount.parentElement?.parentElement)
   return results
 }
 
-/**
- * Records a failed probe, sets a global flag, and returns false.
- *
- * @param   {string} reason  Human-readable reason for the failure.
- * @returns {false}
- */
 function _fail(reason) {
   _probeResult = false
   window.__webglUnavailable = true
@@ -240,6 +110,5 @@ function _fail(reason) {
   return false
 }
 
-// ─── Auto-probe at module evaluation time ────────────────────────────────────
-// Runs immediately when the module is first imported, before any scene init.
+// Probe immediately at module load time
 probeWebGL()
