@@ -273,8 +273,9 @@ window.addEventListener("load", () => {
     return { albedo: mkTex(aC, THREE.SRGBColorSpace), rough: mkTex(rC, THREE.NoColorSpace), normal: mkTex(nC, THREE.NoColorSpace) }
   }
 
-  // droneMats is assigned asynchronously in the idle callback below
+  // droneMats and pendingGltf resolve a race: whichever arrives second triggers setupDrone
   let droneMats = null
+  let pendingGltf = null
 
   const CF_DENSITY    = 200.0
   const SOLAR_DENSITY =  48.0
@@ -318,10 +319,8 @@ window.addEventListener("load", () => {
   const gltfLoader = new GLTFLoader()
   gltfLoader.setDRACOLoader(draco)
 
-  // GLB callback — materials are guaranteed ready by this point (network >> idle callback)
-  gltfLoader.load(DRONE_ASSETS.model, g => {
-    if (!droneMats) { console.warn("[drone-scene] Materials not ready at GLB load time"); return }
-
+  // Extraído para que tanto o callback do GLB quanto o idle callback possam chamá-lo
+  function setupDrone(g) {
     const obj = g.scene
     obj.position.set(0, 0, 0); obj.rotation.set(0, 0, 0)
     const box = new THREE.Box3().setFromObject(obj)
@@ -383,6 +382,16 @@ window.addEventListener("load", () => {
     reveal.wireUniforms.revealRadius.value  = 0
     reveal.startTime = clock.elapsedTime
     reveal.active    = true
+  }
+
+  // Se o GLB chegar antes dos materiais, armazena em pendingGltf
+  // Se os materiais chegarem primeiro, o idle callback chama setupDrone diretamente
+  gltfLoader.load(DRONE_ASSETS.model, g => {
+    if (droneMats) {
+      setupDrone(g)
+    } else {
+      pendingGltf = g
+    }
   })
 
   // Defer heavy canvas texture generation to idle time — avoids blocking first paint
@@ -414,6 +423,8 @@ window.addEventListener("load", () => {
         envMapIntensity: 0.25, side: THREE.FrontSide,  // solid body parts — FrontSide only
       }),
     }
+    // GLB may have already arrived while textures were being generated
+    if (pendingGltf) { setupDrone(pendingGltf); pendingGltf = null }
   })
 
   const poses = [
