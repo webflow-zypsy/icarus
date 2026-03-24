@@ -489,7 +489,7 @@ window.addEventListener("load", () => {
 
   function animate() {
     rafId = requestAnimationFrame(animate)
-    const t = clock.elapsedTime
+    const t = clock.getElapsedTime()
 
     smoothT += (scrollT - smoothT) * 0.06
     if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
