@@ -134,7 +134,7 @@ window.addEventListener("load", () => {
     t.generateMipmaps = true
     t.minFilter = THREE.LinearMipmapLinearFilter
     t.magFilter = THREE.LinearFilter
-    t.anisotropy = 4  // reduced from 16 — visually equivalent for these textures
+    t.anisotropy = 16
     return t
   }
 
@@ -414,13 +414,13 @@ window.addEventListener("load", () => {
         color: 0x6d6d6d, map: cf.albedo, metalness: 0.0, roughness: 0.92,
         roughnessMap: cf.rough, clearcoat: 0.0,
         normalMap: cf.normal, normalScale: new THREE.Vector2(0.2, 0.2),
-        envMapIntensity: 0.25, side: THREE.FrontSide,  // solid body parts — FrontSide only
+        envMapIntensity: 0.25, side: THREE.DoubleSide,
       }),
       tailMatte: new THREE.MeshPhysicalMaterial({
         color: 0xc9c9c9, map: cf.albedo, metalness: 0.0, roughness: 0.92,
         roughnessMap: cf.rough, clearcoat: 0.0,
         normalMap: cf.normal, normalScale: new THREE.Vector2(0.2, 0.2),
-        envMapIntensity: 0.25, side: THREE.FrontSide,  // solid body parts — FrontSide only
+        envMapIntensity: 0.25, side: THREE.DoubleSide,
       }),
     }
     // GLB may have already arrived while textures were being generated
