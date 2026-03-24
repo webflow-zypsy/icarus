@@ -1,307 +1,272 @@
 /**
  * hero-background-scene.js  —  ES Module
- * Mounts Three.js background scene into #scene-background
- * Scroll driven by GSAP ScrollTrigger on #scenes-track
- * Load as: <script type="module" src="...hero-background-scene.js"></script>
+ * Mounts the hero sky/topo background into #scene-background.
+ * Scroll driven by GSAP ScrollTrigger on #scenes-track.
  */
 
-// ─── ASSET URL ────────────────────────────────────────────────────────────────
 const BG_ASSETS = {
   image: "https://webflow-zypsy.github.io/icarus/hero-background-image.webp",
 }
-
-// ─── LOOP CONFIG ──────────────────────────────────────────────────────────────
-// period — seconds for one direction of travel (forward 45s, then reverse 45s)
-const LOOP = {
-  period: 45.0,
-}
+const LOOP = { period: 45.0 }
 
 import * as THREE from "three"
 import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
-// ─── Hero animation trigger ───────────────────────────────────────────────────
-// Called exactly once — either when the bg scene finishes its reveal, or when
-// the WebGL fallback activates. The guard on window.__heroAnimTriggered ensures
-// only the first caller wins, regardless of which path fires first.
 function triggerHeroAnimation() {
   if (window.__heroAnimTriggered) return
   window.__heroAnimTriggered = true
   document.querySelector('.home-hero_animation-trigger')?.click()
 }
 
-// ─── DESKTOP-ONLY GUARD ───────────────────────────────────────────────────────
-// The scene is skipped entirely on viewports narrower than 992 px.
-// If the user resizes into a desktop viewport after load, a full page reload
-// is required (Three.js scenes cannot be hot-initialised mid-session).
-const DESKTOP_MQ = window.matchMedia("(min-width: 992px)")
-if (!DESKTOP_MQ.matches) {
+if (!window.matchMedia("(min-width: 992px)").matches) {
   console.info("[bg-scene] Skipped — non-desktop viewport.")
 } else {
 
 window.addEventListener("load", () => {
-  if (!window.matchMedia("(min-width: 992px)").matches) {
-    console.info("[bg-scene] Skipped — non-desktop viewport."); return
-  }
+  if (!window.matchMedia("(min-width: 992px)").matches) return
   if (typeof gsap === "undefined" || typeof ScrollTrigger === "undefined") {
     console.error("[bg-scene] GSAP / ScrollTrigger not found."); return
   }
   gsap.registerPlugin(ScrollTrigger)
 
-  // ─── Lazy init: scene boots only when #scenes-track top is within
-  // 120% of the viewport height (just below the fold).
   const trackEl = document.getElementById("scenes-track")
   if (!trackEl) { console.error("[bg-scene] #scenes-track not found."); return }
 
+  // Init when #scenes-track is near the viewport
   const lazyObserver = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting) {
-        lazyObserver.disconnect()
-        initScene()
-      }
-    },
+    entries => { if (entries[0].isIntersecting) { lazyObserver.disconnect(); initScene() } },
     { rootMargin: "0px 0px 20% 0px", threshold: 0 }
   )
   lazyObserver.observe(trackEl)
 
   function initScene() {
+    if (!webglAvailable()) { activateFallback('scene-background'); return }
 
-  // ── WebGL availability check ──────────────────────────────────────────────
-  if (!webglAvailable()) {
-    activateFallback('scene-background')
-    return
-  }
+    const mountEl = document.getElementById("scene-background")
+    if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
 
-  const mountEl = document.getElementById("scene-background")
-  if (!mountEl) { console.error("[bg-scene] #scene-background not found."); return }
+    const easeOut   = t => 1 - Math.pow(1 - t, 3)
+    const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2
 
-  const easeOut   = t => 1 - Math.pow(1-t, 3)
-  const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2
+    let skyReady = false
+    let topoMesh = null, topoMat = null, topoGeo = null
+    const anim = { phase: "waiting", phaseStart: 0, gridRevealDuration: 1.3, fadeInDuration: 0.8 }
 
-  let skyReady = false, loadedTexture = null
-  let topoMesh = null, topoMat = null, topoGeo = null
-  const anim = { phase: "waiting", phaseStart: 0, gridRevealDuration: 1.3, fadeInDuration: 0.8 }
+    const scene  = new THREE.Scene()
+    const initW  = mountEl.clientWidth  || window.innerWidth
+    const initH  = mountEl.clientHeight || window.innerHeight
+    const camera = new THREE.PerspectiveCamera(70, initW / initH, 0.1, 1000)
 
-  const scene  = new THREE.Scene()
-  const initW  = mountEl.clientWidth  || window.innerWidth
-  const initH  = mountEl.clientHeight || window.innerHeight
-  const camera = new THREE.PerspectiveCamera(70, initW/initH, 0.1, 1000)
+    let renderer
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: false })
+    } catch (e) {
+      console.warn("[bg-scene] WebGLRenderer threw:", e.message)
+      activateFallback('scene-background'); return
+    }
+    renderer.setSize(initW, initH)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.toneMapping = THREE.NoToneMapping
+    renderer.setClearColor(0xffffff, 1)
+    renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
+    mountEl.appendChild(renderer.domElement)
 
-  let renderer
-  try {
-    renderer = new THREE.WebGLRenderer({ antialias: false })
-  } catch (e) {
-    console.warn("[bg-scene] WebGLRenderer threw:", e.message)
-    activateFallback('scene-background')
-    return
-  }
-  renderer.setSize(initW, initH)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.toneMapping = THREE.NoToneMapping
-  renderer.setClearColor(0xffffff, 1)
-  renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
-  mountEl.appendChild(renderer.domElement)
+    const DOME_H_FOV = 183.0 * Math.PI / 180.0
 
-  // ── Sky mesh factory ──────────────────────────────────────────────────────────
-  // Creates an independent sky sphere with its own material + uniforms.
-  const DOME_H_FOV = 183.0 * Math.PI / 180.0
+    function makeSkyMesh(tex) {
+      // Reduced from 64×32 — projection is done in the shader, geometry is just a container
+      const geo = new THREE.SphereGeometry(500, 32, 16)
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          tImage:       { value: tex },
+          uOpacity:     { value: 0.0 },
+          uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) },
+          uHFov:        { value: DOME_H_FOV },
+          uImageAspect: { value: tex ? tex.image.width / tex.image.height : 16/9 },
+          uHOffset:     { value: 0.0 },
+          uVOffset:     { value: 0.0 },
+        },
+        vertexShader: `
+          varying vec3 vLP;
+          void main(){ vLP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+        `,
+        fragmentShader: `
+          uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
+          uniform float uHFov,uImageAspect,uHOffset,uVOffset;
+          varying vec3 vLP;
+          void main(){
+            vec3 dir=normalize(vLP);
+            vec3 fwd=normalize(uCenterDir);
+            vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
+            vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
+            float az=atan(dot(dir,rt),dot(dir,fwd));
+            float el=asin(clamp(dot(dir,up),-1.0,1.0));
+            float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
+            float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
+            float v=0.5+el/(2.0*vv)+uVOffset;
+            if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
+            float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
+            gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
+          }
+        `,
+        side: THREE.BackSide, transparent: true, depthWrite: false,
+      })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.renderOrder = -1000
+      scene.add(mesh)
+      return { mesh, mat, geo }
+    }
 
-  function makeSkyMesh(tex) {
-    const geo = new THREE.SphereGeometry(500, 64, 32)
-    const mat = new THREE.ShaderMaterial({
+    let skyA = null
+
+    // Topo wireframe — intro effect only, disposed after fadeIn
+    const GS = 180, GSZ = 200, GOX = -1.5, GOZ = -1
+    topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS); topoGeo.rotateX(-Math.PI / 2)
+    topoMat = new THREE.ShaderMaterial({
       uniforms: {
-        tImage:       { value: tex },
-        uOpacity:     { value: 0.0 },
-        uCenterDir:   { value: new THREE.Vector3(0.642, -0.506, 0.576) },
-        uHFov:        { value: DOME_H_FOV },
-        uImageAspect: { value: tex ? tex.image.width / tex.image.height : 16/9 },
-        uHOffset:     { value: 0.0 },
-        uVOffset:     { value: 0.0 },
+        tSky:               { value: null },
+        uOpacity:           { value: 0.0  },
+        uDisplacementScale: { value: 3.5  },
+        uGridMin:           { value: new THREE.Vector2(GOX - GSZ/2, GOZ - GSZ/2) },
+        uGridMax:           { value: new THREE.Vector2(GOX + GSZ/2, GOZ + GSZ/2) },
       },
       vertexShader: `
-        varying vec3 vLP;
-        void main(){ vLP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+        uniform sampler2D tSky; uniform float uDisplacementScale; uniform vec2 uGridMin,uGridMax;
+        varying float vL;
+        void main(){
+          vec3 wp=(modelMatrix*vec4(position,1.0)).xyz;
+          float u=clamp((wp.x-uGridMin.x)/(uGridMax.x-uGridMin.x),0.0,1.0);
+          float v=clamp(1.0-(wp.z-uGridMin.y)/(uGridMax.y-uGridMin.y),0.0,1.0);
+          vec4 ts=texture2D(tSky,vec2(u,v));
+          float lum=clamp(dot(ts.rgb,vec3(0.2126,0.7152,0.0722)),0.0,1.0);
+          vL=lum; wp.y+=lum*uDisplacementScale;
+          gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.0);
+        }
       `,
       fragmentShader: `
-        uniform sampler2D tImage; uniform float uOpacity; uniform vec3 uCenterDir;
-        uniform float uHFov,uImageAspect,uHOffset,uVOffset;
-        varying vec3 vLP;
-        void main(){
-          vec3 dir=normalize(vLP);
-          vec3 fwd=normalize(uCenterDir);
-          vec3 wu=abs(fwd.y)<0.99?vec3(0,1,0):vec3(1,0,0);
-          vec3 rt=normalize(cross(wu,fwd)),up=cross(fwd,rt);
-          float az=atan(dot(dir,rt),dot(dir,fwd));
-          float el=asin(clamp(dot(dir,up),-1.0,1.0));
-          float hh=uHFov*0.5,vv=uHFov/uImageAspect*0.5;
-          float u=1.0-(az/(2.0*hh)+0.5)+uHOffset;
-          float v=0.5+el/(2.0*vv)+uVOffset;
-          if(u<0.0||u>1.0||v<0.0||v>1.0){gl_FragColor=vec4(0);return;}
-          float ew=0.03,ef=smoothstep(0.0,ew,u)*smoothstep(0.0,ew,1.0-u)*smoothstep(0.0,ew,v)*smoothstep(0.0,ew,1.0-v);
-          gl_FragColor=vec4(texture2D(tImage,vec2(u,v)).rgb,uOpacity*ef);
-        }
+        uniform float uOpacity; varying float vL;
+        void main(){ gl_FragColor=vec4(vec3(0.82+vL*0.05),uOpacity); }
       `,
-      side: THREE.BackSide, transparent: true, depthWrite: false,
+      wireframe: true, transparent: true, depthWrite: false,
     })
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.renderOrder = -1000
-    scene.add(mesh)
-    return { mesh, mat, geo }
-  }
+    topoMesh = new THREE.Mesh(topoGeo, topoMat)
+    topoMesh.position.set(GOX, -1, GOZ)
+    scene.add(topoMesh)
 
-  // Disposes geometry + material but NOT the shared texture
-  function destroySkyMesh(sky) {
-    if (!sky) return
-    scene.remove(sky.mesh)
-    sky.geo.dispose()
-    sky.mat.dispose()
-    // sky.mat.uniforms.tImage.value is the shared texture — do NOT dispose it
-  }
+    new THREE.TextureLoader().load(BG_ASSETS.image, tex => {
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
+      tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
+      skyA = makeSkyMesh(tex)
+      topoMat.uniforms.tSky.value = tex
+      skyReady = true
+    }, undefined, err => console.error("[bg-scene] Image load failed:", err))
 
-  // Single sky instance — ping-pong animation needs only one sphere
-  let skyA = null
+    const poses = [
+      { cam: new THREE.Vector3(-2.820, 1.965, -2.340), tgt: new THREE.Vector3(0, 0.3, 0) },
+      { cam: new THREE.Vector3(-4.640, 3.510,  0.000), tgt: new THREE.Vector3(0, 0.3, 0) },
+      { cam: new THREE.Vector3(-5.615, 5.250,  0.000), tgt: new THREE.Vector3(0, 0.3, 0) },
+    ]
 
-  // ── Topo wireframe ────────────────────────────────────────────────────────────
-  const GS=180, GSZ=200, GOX=-1.5, GOZ=-1
-  topoGeo = new THREE.PlaneGeometry(GSZ, GSZ, GS, GS); topoGeo.rotateX(-Math.PI/2)
-  topoMat = new THREE.ShaderMaterial({
-    uniforms: {
-      tSky:               { value: null },
-      uOpacity:           { value: 0.0  },
-      uDisplacementScale: { value: 3.5  },
-      uGridMin:           { value: new THREE.Vector2(GOX-GSZ/2, GOZ-GSZ/2) },
-      uGridMax:           { value: new THREE.Vector2(GOX+GSZ/2, GOZ+GSZ/2) },
-    },
-    vertexShader: `
-      uniform sampler2D tSky; uniform float uDisplacementScale; uniform vec2 uGridMin,uGridMax;
-      varying float vL;
-      void main(){
-        vec3 wp=(modelMatrix*vec4(position,1.0)).xyz;
-        float u=clamp((wp.x-uGridMin.x)/(uGridMax.x-uGridMin.x),0.0,1.0);
-        float v=clamp(1.0-(wp.z-uGridMin.y)/(uGridMax.y-uGridMin.y),0.0,1.0);
-        vec4 ts=texture2D(tSky,vec2(u,v));
-        float lum=clamp(dot(ts.rgb,vec3(0.2126,0.7152,0.0722)),0.0,1.0);
-        vL=lum; wp.y+=lum*uDisplacementScale;
-        gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float uOpacity; varying float vL;
-      void main(){ gl_FragColor=vec4(vec3(0.82+vL*0.05),uOpacity); }
-    `,
-    wireframe: true, transparent: true, depthWrite: false,
-  })
-  topoMesh = new THREE.Mesh(topoGeo, topoMat)
-  topoMesh.position.set(GOX, -1, GOZ)
-  scene.add(topoMesh)
+    const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
+    let scrollT = 0, smoothT = 0
 
-  // ── Load image ────────────────────────────────────────────────────────────────
-  new THREE.TextureLoader().load(BG_ASSETS.image, tex => {
-    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter
-    tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
-    loadedTexture = tex
-    skyA = makeSkyMesh(tex)
-    topoMat.uniforms.tSky.value = tex
-    skyReady = true
-  }, undefined, err => console.error("[bg-scene] Image load failed:", err))
-
-  // ── Camera poses ──────────────────────────────────────────────────────────────
-  const poses = [
-    { cam: new THREE.Vector3(-2.820, 1.965, -2.340), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
-    { cam: new THREE.Vector3(-4.640, 3.510, 0.000), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
-    { cam: new THREE.Vector3(-5.615, 5.250, 0.000), tgt: new THREE.Vector3(0, 0.3, 0), fov: 60 },
-  ]
-    
-  const _cp = new THREE.Vector3(), _ct = new THREE.Vector3(), _cc = new THREE.Color()
-  let scrollT = 0, smoothT = 0
-
-  function applyPose(t) {
-    const cl=Math.max(0,Math.min(1,t)), seg=poses.length-1, sc=cl*seg
-    const i=Math.min(Math.floor(sc),seg-1), f=sc-i
-    _cp.lerpVectors(poses[i].cam, poses[i+1].cam, f)
-    _ct.lerpVectors(poses[i].tgt, poses[i+1].tgt, f)
-    camera.position.copy(_cp); camera.lookAt(_ct)
-  }
-  applyPose(0)
-
-  ScrollTrigger.create({
-    trigger: "#scenes-track", start: "top top", end: "bottom top", scrub: 1,
-    onUpdate: s => { scrollT = s.progress }
-  })
-
-  new ResizeObserver(() => {
-    const w = mountEl.clientWidth||window.innerWidth, h = mountEl.clientHeight||window.innerHeight
-    camera.aspect = w/h; camera.updateProjectionMatrix()
-    renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  }).observe(mountEl)
-
-  // ── Loop state ────────────────────────────────────────────────────────────────
-  let cycleStart = 0   // absolute time when the current cycle began
-
-  // ── Render loop ───────────────────────────────────────────────────────────────
-  let lastTime = 0
-  function animate(now) {
-    requestAnimationFrame(animate)
-    const dt = Math.min((now - lastTime) / 1000, 0.05); lastTime = now
-    const ns = now / 1000
-
-    // Smooth scroll
-    smoothT += (scrollT - smoothT) * (1 - Math.exp(-18 * dt))
-    if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
-    applyPose(smoothT)
-
-    // Keep sky sphere centred on camera so it never clips
-    if (skyA) skyA.mesh.position.copy(camera.position)
-
-    // ── Intro reveal ────────────────────────────────────────────────────────────
-    if (anim.phase === "waiting" && skyReady) {
-      anim.phase = "gridReveal"; anim.phaseStart = ns
+    function applyPose(t) {
+      const cl = Math.max(0, Math.min(1, t)), seg = poses.length - 1, sc = cl * seg
+      const i = Math.min(Math.floor(sc), seg - 1), f = sc - i
+      _cp.lerpVectors(poses[i].cam, poses[i+1].cam, f)
+      _ct.lerpVectors(poses[i].tgt, poses[i+1].tgt, f)
+      camera.position.copy(_cp); camera.lookAt(_ct)
     }
+    applyPose(0)
 
-    if (anim.phase === "gridReveal") {
-      const t = Math.min((ns - anim.phaseStart) / anim.gridRevealDuration, 1)
-      topoMat.uniforms.uOpacity.value = easeInOut(t) * 0.45
-      if (t >= 1) { anim.phase = "fadeIn"; anim.phaseStart = ns }
+    ScrollTrigger.create({
+      trigger: "#scenes-track", start: "top top", end: "bottom top", scrub: 1,
+      onUpdate: s => { scrollT = s.progress }
+    })
 
-    } else if (anim.phase === "fadeIn") {
-      const t = Math.min((ns - anim.phaseStart) / anim.fadeInDuration, 1), e = easeOut(t)
-      if (skyA) skyA.mat.uniforms.uOpacity.value = e
-      if (topoMat) topoMat.uniforms.uOpacity.value = 0.45 * (1 - e)
-      const wb = 1 - e; renderer.setClearColor(_cc.setRGB(wb, wb, wb), 1)
-      if (t >= 1) {
-        anim.phase = "running"; cycleStart = ns   // reset cycle clock here so offsets start from 0
-        if (skyA) skyA.mat.uniforms.uOpacity.value = 1.0
-        renderer.setClearColor(0x000000, 1)
-        if (topoMesh) {
-          scene.remove(topoMesh); topoGeo.dispose(); topoMat.dispose()
-          topoMesh = topoGeo = topoMat = null
+    new ResizeObserver(() => {
+      const w = mountEl.clientWidth || window.innerWidth, h = mountEl.clientHeight || window.innerHeight
+      camera.aspect = w / h; camera.updateProjectionMatrix()
+      renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    }).observe(mountEl)
+
+    let cycleStart = 0
+    let rafId = null, isVisible = true, lastTime = 0
+
+    // Pause rendering when the scene is off-screen
+    new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting
+      if (!isVisible) {
+        cancelAnimationFrame(rafId); rafId = null
+      } else if (rafId === null) {
+        lastTime = performance.now()
+        rafId = requestAnimationFrame(animate)
+      }
+    }, { threshold: 0.01 }).observe(mountEl)
+
+    // Pause when the tab is hidden
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        cancelAnimationFrame(rafId); rafId = null
+      } else if (isVisible && rafId === null) {
+        lastTime = performance.now()
+        rafId = requestAnimationFrame(animate)
+      }
+    })
+
+    function animate(now) {
+      rafId = requestAnimationFrame(animate)
+      const dt = Math.min((now - lastTime) / 1000, 0.05); lastTime = now
+      const ns = now / 1000
+
+      smoothT += (scrollT - smoothT) * (1 - Math.exp(-18 * dt))
+      if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
+      applyPose(smoothT)
+
+      if (skyA) skyA.mesh.position.copy(camera.position)
+
+      if (anim.phase === "waiting" && skyReady) {
+        anim.phase = "gridReveal"; anim.phaseStart = ns
+      }
+
+      if (anim.phase === "gridReveal") {
+        const t = Math.min((ns - anim.phaseStart) / anim.gridRevealDuration, 1)
+        topoMat.uniforms.uOpacity.value = easeInOut(t) * 0.45
+        if (t >= 1) { anim.phase = "fadeIn"; anim.phaseStart = ns }
+
+      } else if (anim.phase === "fadeIn") {
+        const t = Math.min((ns - anim.phaseStart) / anim.fadeInDuration, 1), e = easeOut(t)
+        if (skyA) skyA.mat.uniforms.uOpacity.value = e
+        if (topoMat) topoMat.uniforms.uOpacity.value = 0.45 * (1 - e)
+        const wb = 1 - e; renderer.setClearColor(_cc.setRGB(wb, wb, wb), 1)
+        if (t >= 1) {
+          anim.phase = "running"; cycleStart = ns
+          if (skyA) skyA.mat.uniforms.uOpacity.value = 1.0
+          renderer.setClearColor(0x000000, 1)
+          if (topoMesh) {
+            scene.remove(topoMesh); topoGeo.dispose(); topoMat.dispose()
+            topoMesh = topoGeo = topoMat = null
+          }
+          triggerHeroAnimation()
         }
-        // ── Scene fully revealed — trigger hero animation ──────────────────────
-        triggerHeroAnimation()
+
+      } else if (anim.phase === "running" && skyA) {
+        // Ping-pong: even half-cycles go forward, odd go reverse — seamless bounce
+        const ha    = 0.06 * (1 - Math.min(smoothT / 0.3, 1))
+        const totalT = ns - cycleStart
+        const halfN  = Math.floor(totalT / LOOP.period)
+        const phase  = (totalT % LOOP.period) / LOOP.period
+        const frac   = (halfN % 2 === 0) ? phase : 1.0 - phase
+        skyA.mat.uniforms.uHOffset.value = frac * ha
+        skyA.mat.uniforms.uVOffset.value = -frac * 0.10
       }
 
-    } else if (anim.phase === "running" && skyA) {
-
-      // ── Ping-pong offset animation ───────────────────────────────────────────
-      // totalT counts up forever. We divide by period to get which half-cycle
-      // we're in: even half = forward (0→1), odd half = reverse (1→0).
-      // This gives a seamless bounce with no hard cuts or crossfades needed.
-      const ha     = 0.06 * (1 - Math.min(smoothT / 0.3, 1))
-      const totalT = ns - cycleStart
-      const halfN  = Math.floor(totalT / LOOP.period)   // which half-cycle (0, 1, 2, ...)
-      const phase  = (totalT % LOOP.period) / LOOP.period  // 0 → 1 within this half
-
-      // Even half = forward, odd half = reverse
-      const frac = (halfN % 2 === 0) ? phase : 1.0 - phase
-
-      skyA.mat.uniforms.uHOffset.value = frac * ha
-      skyA.mat.uniforms.uVOffset.value = -frac * 0.10
+      renderer.render(scene, camera)
     }
 
-    renderer.render(scene, camera)
-  }
-  requestAnimationFrame(animate)
+    rafId = requestAnimationFrame(animate)
 
-  } // end initScene()
+  } // end initScene
 }) // end window load
 
 } // end desktop guard
