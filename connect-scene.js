@@ -262,8 +262,9 @@ window.addEventListener("load", () => {
       return { albedo: mkTex(aC, THREE.SRGBColorSpace), rough: mkTex(rC, THREE.NoColorSpace), normal: mkTex(nC, THREE.NoColorSpace) }
     }
 
-    // droneMats assigned asynchronously via idle callback
+    // droneMats and pendingGltf resolve a race: whichever arrives second triggers setupDrone
     let droneMats = null
+    let pendingGltf = null
     const CF_DENSITY = 200.0, SOLAR_DENSITY = 48.0
 
     // ── Camera ───────────────────────────────────────────────────────────────
@@ -396,9 +397,7 @@ window.addEventListener("load", () => {
     const gltfLoader = new GLTFLoader()
     gltfLoader.setDRACOLoader(draco)
 
-    gltfLoader.load(ASSETS.model, g => {
-      if (!droneMats) { console.warn("[connect-scene] Materials not ready at GLB load time"); return }
-
+    function setupDrone(g) {
       const obj = g.scene
       obj.position.set(0, 0, 0); obj.rotation.set(0, 0, 0)
       const box = new THREE.Box3().setFromObject(obj), bsz = new THREE.Vector3(), bctr = new THREE.Vector3()
@@ -435,6 +434,11 @@ window.addEventListener("load", () => {
       for (const m of meshes) { if (tailNames.has(m.name)) m.material = droneMats.tailMatte }
 
       droneObject = obj
+    }
+
+    // If the GLB arrives before materials are ready, hold it in pendingGltf
+    gltfLoader.load(ASSETS.model, g => {
+      if (droneMats) { setupDrone(g) } else { pendingGltf = g }
     })
 
     // Defer heavy texture generation — avoids blocking the initial paint
@@ -466,6 +470,8 @@ window.addEventListener("load", () => {
           envMapIntensity: 0.25, side: THREE.FrontSide,  // solid body parts — FrontSide only
         }),
       }
+      // GLB may have already arrived while textures were being generated
+      if (pendingGltf) { setupDrone(pendingGltf); pendingGltf = null }
     })
 
     // ── ScrollTrigger ─────────────────────────────────────────────────────────
@@ -505,7 +511,7 @@ window.addEventListener("load", () => {
     // ── Render loop ───────────────────────────────────────────────────────────
     function animate() {
       rafId = requestAnimationFrame(animate)
-      const t = clock.elapsedTime
+      const t = clock.getElapsedTime()
 
       smoothT += (scrollT - smoothT) * 0.08
       if (Math.abs(scrollT - smoothT) < 0.0001) smoothT = scrollT
