@@ -44,6 +44,14 @@
  *     return
  *   }
  *
+ * HERO ANIMATION TRIGGER
+ * ───────────────────────
+ * When the background scene fallback activates (WebGL unavailable or renderer
+ * threw), this module fires triggerHeroAnimation() so the hero UI still
+ * animates in with the fallback image. The guard on window.__heroAnimTriggered
+ * ensures the click fires at most once, even if activateFallback() is called
+ * for multiple scene IDs in the same session.
+ *
  * PROBE TIMING
  * ─────────────
  * probeWebGL() runs automatically at module evaluation time — before any
@@ -56,6 +64,16 @@
 // true  = WebGL is functional
 // false = WebGL is unavailable or broken
 let _probeResult = null
+
+// ─── Hero animation trigger ───────────────────────────────────────────────────
+// Fires .home-hero_animation-trigger click exactly once across all callers.
+// The guard on window.__heroAnimTriggered prevents duplicate fires if both
+// the scene file and the fallback module end up calling this in the same run.
+function triggerHeroAnimation() {
+  if (window.__heroAnimTriggered) return
+  window.__heroAnimTriggered = true
+  document.querySelector('.home-hero_animation-trigger')?.click()
+}
 
 // ─── probeWebGL() ─────────────────────────────────────────────────────────────
 /**
@@ -133,6 +151,9 @@ export function webglAvailable() {
  * Any <canvas> elements already inserted by Three.js are hidden to prevent
  * a blank transparent rectangle sitting above the fallback content.
  *
+ * If the failing scene is #scene-background, triggerHeroAnimation() is called
+ * so the hero UI animates in even without the Three.js scene.
+ *
  * @param {string} [mountId]  The id of the Three.js mount div (e.g.
  *                            "scene-background"). Omit to activate fallbacks
  *                            for ALL three scenes at once.
@@ -159,16 +180,22 @@ export function activateFallback(mountId) {
 
     if (fallbacks.length === 0) {
       console.warn(`[webgl-fallback] No [data-threejs-fallback] elements found for #${id}`)
-      continue
+    } else {
+      for (const el of fallbacks) {
+        el.style.display    = "block"
+        el.style.opacity    = "1"
+        el.style.visibility = "visible"
+      }
+      console.info(`[webgl-fallback] ${fallbacks.length} fallback element(s) activated for #${id}`)
     }
 
-    for (const el of fallbacks) {
-      el.style.display    = "block"
-      el.style.opacity    = "1"
-      el.style.visibility = "visible"
+    // ── Hero animation trigger ─────────────────────────────────────────────────
+    // Only fires for the background scene — that's the one whose load sequence
+    // normally triggers the hero animation. The guard ensures it fires at most
+    // once even if activateFallback() is called multiple times or without an id.
+    if (id === "scene-background") {
+      triggerHeroAnimation()
     }
-
-    console.info(`[webgl-fallback] ${fallbacks.length} fallback element(s) activated for #${id}`)
   }
 }
 
