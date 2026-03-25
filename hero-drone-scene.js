@@ -323,6 +323,16 @@ window.addEventListener("load", () => {
   function setupDrone(g) {
     const obj = g.scene
     obj.position.set(0, 0, 0); obj.rotation.set(0, 0, 0)
+    const box = new THREE.Box3().setFromObject(obj)
+    const bsz = new THREE.Vector3(), bctr = new THREE.Vector3()
+    box.getSize(bsz); box.getCenter(bctr)
+    const md = Math.max(bsz.x, bsz.y, bsz.z)
+    if (isFinite(md) && md > 0) {
+      const s = 1.4 / md
+      obj.scale.setScalar(s)
+      obj.position.sub(bctr.multiplyScalar(s))
+    }
+    obj.rotation.set(-Math.PI / 2, 0, 0)
     droneBasePos.copy(obj.position)
     droneBaseRot.copy(obj.rotation)
     obj.updateMatrixWorld(true)
