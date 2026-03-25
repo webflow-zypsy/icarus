@@ -33,12 +33,10 @@ window.addEventListener("load", () => {
   const trackEl = document.getElementById("connect-track")
   if (!trackEl) { console.error("[connect-scene] #connect-track not found."); return }
 
-  // Lazy init — boot only when the connect section is approaching the viewport
-  const lazyObserver = new IntersectionObserver(
-    entries => { if (entries[0].isIntersecting) { lazyObserver.disconnect(); initConnectScene() } },
-    { rootMargin: "0px 0px 30% 0px", threshold: 0 }
-  )
-  lazyObserver.observe(trackEl)
+  // Init immediately so assets start loading on page load.
+  // The IntersectionObserver inside initConnectScene pauses the RAF loop
+  // until #connect-drone actually enters the viewport.
+  initConnectScene()
 
   function initConnectScene() {
     if (!webglAvailable()) { activateFallback('connect-drone'); return }
@@ -487,7 +485,7 @@ window.addEventListener("load", () => {
       renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     }).observe(mountEl)
 
-    let rafId = null, isVisible = true
+    let rafId = null, isVisible = false
 
     // Pause rendering when the scene is off-screen
     new IntersectionObserver(([entry]) => {
@@ -573,7 +571,7 @@ window.addEventListener("load", () => {
       renderer.autoClear = true
     }
 
-    rafId = requestAnimationFrame(animate)
+    // RAF loop is started by the IntersectionObserver above when #connect-drone enters the viewport
 
   } // end initConnectScene
 }) // end window load
