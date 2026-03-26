@@ -80,7 +80,7 @@ export function activateFallback(mountId) {
       console.warn(`[webgl-fallback] No [data-threejs-fallback] elements found for #${id}`)
     } else {
       for (const el of fallbacks) {
-        el.style.display = "block"; el.style.opacity = "1"; el.style.visibility = "visible"
+        el.style.display = "flex"; el.style.opacity = "1"; el.style.visibility = "visible"
       }
       console.info(`[webgl-fallback] ${fallbacks.length} fallback(s) activated for #${id}`)
     }
