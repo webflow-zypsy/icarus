@@ -216,10 +216,10 @@ z.toneMapping = ue;
 z.toneMappingExposure = 3.2;
 z.setClearColor(0, 0);
 
-let D = document.getElementById("canvas-wrap");
+let D = document.getElementById("scene-drone");
 if (!D) {
     D = document.createElement("div");
-    D.id = "canvas-wrap";
+    D.id = "scene-drone";
     document.body.appendChild(D);
 }
 D.innerHTML = "";
