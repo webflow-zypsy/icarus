@@ -403,7 +403,7 @@ const tr = document.getElementById("connect-track");
 if (tr) {
 const rect = tr.getBoundingClientRect();
 const dist = tr.offsetHeight - window.innerHeight;
-const earlyEnd = 1.25 * window.innerHeight;
+const earlyEnd = 1.5 * window.innerHeight;
 ce = dist > 0 ? Math.max(0, Math.min(1, -rect.top / (dist - earlyEnd))) : 0;
 } else {
 const t = document.documentElement.scrollHeight - window.innerHeight;
