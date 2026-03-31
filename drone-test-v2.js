@@ -251,11 +251,11 @@ Qe(); S.add(I);
 const $ = new ut(16777215, 0, 50);
 $.position.set(0, 3, 5); S.add($);
 
-const Ot = "https://cdn.jsdelivr.net/gh/augustondreis/icarus@main/green-512.hdr";
-const _t = "https://cdn.jsdelivr.net/gh/augustondreis/icarus@main/apollo-draco.glb";
-const Wt = "https://cdn.jsdelivr.net/gh/augustondreis/icarus-connect@main/vienna-mountains.webp";
-const Ht = "https://cdn.jsdelivr.net/gh/augustondreis/icarus-connect@main/night.webp";
-const cloudUrl = "https://cdn.jsdelivr.net/gh/augustondreis/icarus-connect@main/cloud03-7.webp";
+const Ot = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/green-512.hdr";
+const _t = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/apollo-draco.glb";
+const Wt = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/vienna-mountains.webp";
+const Ht = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/night.webp";
+const cloudUrl = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/cloud03-7.webp";
 
 const Te = { extraScale: 16, rotation: new be(-Math.PI / 2, 0, 0) };
 
