@@ -230,8 +230,8 @@ const De = new ye(9351106, 5785656, 0.8);
 P.add(De);
 
 const se = new E(0, 0.3, 0);
-const Ie = "https://cdn.jsdelivr.net/gh/augustondreis/icarus@main/green-512.hdr";
-const Ue = "https://cdn.jsdelivr.net/gh/augustondreis/icarus@main/apollo-draco.glb";
+const Ie = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/green-512.hdr";
+const Ue = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/apollo-draco.glb";
 const le = { extraScale: 16, rotation: new re(-Math.PI / 2, 0, 0) };
 const me = new be(z);
 me.compileEquirectangularShader();
