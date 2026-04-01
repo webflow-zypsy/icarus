@@ -11,50 +11,8 @@ let j = new E(0, 0, 0);
 let q = new re(0, 0, 0);
 
 const Ee = { bobAmp: 0.04, bobPeriod: 5, stallPeriod: 3, stallDepth: 0.35, pitchAmp: 0.0075 };
-const S = { active: false, startTime: 0, wireframeDuration: 1.3, fadeOutDuration: 0.8, maxRadius: 1, wireframeClones: [], wireframeMat: null, solidUniforms: { revealRadius: { value: 0 } }, wireUniforms: { revealRadius: { value: 0 } } };
 
 function ee(r) { return 1 - Math.pow(1 - r, 3); }
-
-function V(r, n) {
-    r.onBeforeCompile = o => {
-        o.uniforms.revealRadius = n.revealRadius;
-        o.vertexShader = o.vertexShader
-            .replace("#include <common>", "#include <common>\nvarying vec3 vRevealWorldPos;")
-            .replace("#include <fog_vertex>", "#include <fog_vertex>\nvRevealWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
-        o.fragmentShader = o.fragmentShader
-            .replace("#include <clipping_planes_pars_fragment>", "#include <clipping_planes_pars_fragment>\nuniform float revealRadius;\nvarying vec3 vRevealWorldPos;")
-            .replace("vec4 diffuseColor = vec4( diffuse, opacity );", "vec4 diffuseColor = vec4( diffuse, opacity );\n{\n  float revDist = max(abs(vRevealWorldPos.x), abs(vRevealWorldPos.z));\n  if (revDist > revealRadius) discard;\n}\n");
-    };
-    r.customProgramCacheKey = () => "reveal";
-    r.needsUpdate = true;
-}
-
-function We(r, n) {
-    const o = new Re({ color: 16742144, wireframe: true, transparent: true, opacity: 0.6, depthWrite: false });
-    V(o, n);
-    S.wireframeMat = o;
-    for (const t of r) {
-        const e = new Ce(t.geometry, o);
-        e.position.copy(t.position);
-        e.rotation.copy(t.rotation);
-        e.scale.copy(t.scale);
-        e.renderOrder = -1;
-        (t.parent || t).add(e);
-        S.wireframeClones.push(e);
-    }
-}
-
-function _e() {
-    for (const r of S.wireframeClones) r.parent?.remove(r);
-    S.wireframeClones.length = 0;
-    if (S.wireframeMat) { S.wireframeMat.dispose(); S.wireframeMat = null; }
-    for (const r of [_.solarPanel, _.carbonMatte, _.tailMatte]) {
-        r.onBeforeCompile = () => {};
-        r.customProgramCacheKey = () => "";
-        r.needsUpdate = true;
-    }
-    S.active = false;
-}
 
 const $e = (r, n) => {
     const o = r.geometry;
@@ -312,14 +270,6 @@ fe.load(Ue, r => {
     }
     
     N = n;
-    {
-        const s = new Q().setFromObject(n), l = Math.max(Math.abs(s.min.x), Math.abs(s.max.x), Math.abs(s.min.z), Math.abs(s.max.z));
-        S.maxRadius = l > 0 ? l * 1.05 : 10;
-        V(_.solarPanel, S.solidUniforms); V(_.carbonMatte, S.solidUniforms); V(_.tailMatte, S.solidUniforms);
-        We(u, S.wireUniforms);
-        S.solidUniforms.revealRadius.value = 0; S.wireUniforms.revealRadius.value = 0;
-        S.startTime = ae.elapsedTime; S.active = true;
-    }
 
     const M = [
         { cam: new E(-23.705, 16.498, -19.656), tgt: new E(0.6, 1.60, 0) },
@@ -372,16 +322,6 @@ function pe() {
         const n = Ee, o = 2 * Math.PI / n.bobPeriod, t = Math.sin(r * o), e = 2 * Math.PI / n.stallPeriod, b = Math.cos(r * e), u = 1 - n.stallDepth * b * b, y = t * n.bobAmp * u;
         N.position.set(j.x, j.y + y, j.z);
         const c = Math.cos(r * o) * u; N.rotation.set(q.x + c * n.pitchAmp, q.y, q.z);
-    }
-    
-    if (S.active) {
-        const n = r - S.startTime, o = Math.min(n / S.wireframeDuration, 1), t = ee(o);
-        if (S.wireUniforms.revealRadius.value = t * S.maxRadius, S.solidUniforms.revealRadius.value = 0, o >= 1) {
-            const e = n - S.wireframeDuration, b = Math.min(e / S.fadeOutDuration, 1), u = ee(b), y = ee(b);
-            S.solidUniforms.revealRadius.value = y * S.maxRadius * 1.05;
-            if (S.wireframeMat) S.wireframeMat.opacity = 0.6 * (1 - u);
-            if (b >= 1) _e();
-        }
     }
     
     if (window.__droneScrollState) {
