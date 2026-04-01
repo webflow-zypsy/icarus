@@ -16,8 +16,6 @@
  * Fallbacks: add [data-threejs-fallback] to any element that should appear
  * when a scene fails. The script searches inside the mount div, then its
  * parent and grandparent (covers typical Webflow nesting).
- *
- * Auto-probes WebGL at module evaluation time — result is cached.
  */
 
 let _probeResult = null
@@ -29,12 +27,27 @@ function triggerHeroAnimation() {
 }
 
 /**
- * Tests WebGL with a throwaway canvas. Covers: null context, immediate
- * context loss (driver exhaustion), and first-draw GL errors.
- * Caches and returns the result on repeat calls.
+ * Returns true if the device is a phone or tablet.
+ * Uses two signals so modern iPads (which send a desktop UA) are still caught:
+ *   - User-agent keyword match
+ *   - CSS "pointer: coarse" (finger/stylus as primary input)
+ */
+function _isMobileOrTablet() {
+  const uaMatch = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i
+    .test(navigator.userAgent)
+  const coarsePointer = window.matchMedia("(pointer: coarse)").matches
+  return uaMatch || coarsePointer
+}
+
+/**
+ * Tests WebGL with a throwaway canvas.
+ * Short-circuits on mobile/tablet before any GL context is created.
+ * Covers: null context, immediate context loss, and first-draw GL errors.
+ * Result is cached — safe to call multiple times.
  */
 export function probeWebGL() {
   if (_probeResult !== null) return _probeResult
+  if (_isMobileOrTablet()) return _fail("mobile/tablet device — WebGL disabled")
   try {
     const canvas = document.createElement("canvas")
     const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") || canvas.getContext("experimental-webgl")
