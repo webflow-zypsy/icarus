@@ -12,11 +12,11 @@ const LOOP = { period: 45.0 }
 import * as THREE from "three"
 import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
-function triggerHeroAnimation() {
+/*function triggerHeroAnimation() {
   if (window.__heroAnimTriggered) return
   window.__heroAnimTriggered = true
   document.querySelector('.home-hero_animation-trigger')?.click()
-}
+}*/
 
 if (!window.matchMedia("(min-width: 992px)").matches) {
   console.info("[bg-scene] Skipped — non-desktop viewport.")
