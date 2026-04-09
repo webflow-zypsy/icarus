@@ -290,7 +290,7 @@ fe.load(Ue, r => {
             const tr = document.getElementById("scenes-track");
             if (tr) {
                 const rect = tr.getBoundingClientRect();
-                const dist = tr.offsetHeight - window.innerHeight - window.innerHeight * 0.7;
+                const dist = tr.offsetHeight - window.innerHeight - window.innerHeight * 1.2;
                 x = dist > 0 ? Math.max(0, Math.min(1, -rect.top / dist)) : 0;
             } else {
                 const s = document.documentElement.scrollHeight - window.innerHeight;
