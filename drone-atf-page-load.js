@@ -14,6 +14,14 @@ const Ee = { bobAmp: 0.04, bobPeriod: 5, stallPeriod: 3, stallDepth: 0.35, pitch
 
 function ee(r) { return 1 - Math.pow(1 - r, 3); }
 
+/* ------------------------------------------------------------------ */
+/*  SCROLL-LOCK CONFIG                                                 */
+/*  droneScrollEnd: the fraction of total scroll at which the drone    */
+/*    finishes its camera animation and "parks". The remaining scroll  */
+/*    holds the drone in its final pose while Meet Apollo is readable. */
+/* ------------------------------------------------------------------ */
+const DRONE_SCROLL_END = 0.55; // drone animation finishes at 55% of track scroll
+
 const $e = (r, n) => {
     const o = r.geometry;
     if (!o) return;
@@ -315,7 +323,17 @@ function pe() {
     if (window.__droneScrollState && window.__droneApplyPose) {
         const n = window.__droneScrollState, o = n.getScrollT();
         let t = n.getSmoothT(); t += (o - t) * 0.06; if (Math.abs(o - t) < 1e-4) t = o;
-        n.setSmoothT(t); window.__droneApplyPose(t);
+        n.setSmoothT(t);
+
+        /* ---------------------------------------------------------- */
+        /*  REMAPPED DRONE PROGRESS                                    */
+        /*  The raw scroll (t) goes 0→1 over the full scenes-track.   */
+        /*  We compress the drone camera animation into 0→DRONE_SCROLL */
+        /*  _END so it reaches its final pose early. The remaining     */
+        /*  scroll keeps the drone parked while Meet Apollo is read.   */
+        /* ---------------------------------------------------------- */
+        const droneT = Math.min(t / DRONE_SCROLL_END, 1);
+        window.__droneApplyPose(droneT);
     }
     
     if (N) {
@@ -325,9 +343,24 @@ function pe() {
     }
     
     if (window.__droneScrollState) {
-        const n = Math.min(window.__droneScrollState.getSmoothT() / 0.5, 1), o = 0.6 + n * 0.2, t = 1 - n * 0.1, e = 1 - n * 0.15;
+        /* ---------------------------------------------------------- */
+        /*  FILTER RAMP — also compressed into DRONE_SCROLL_END       */
+        /*  so the grayscale / contrast / brightness settle at the    */
+        /*  same moment the drone parks.                              */
+        /* ---------------------------------------------------------- */
+        const rawT = window.__droneScrollState.getSmoothT();
+        const n = Math.min(rawT / DRONE_SCROLL_END, 1);
+
+        const filterT = Math.min(n / 0.5, 1);          // reaches max at halfway through drone anim
+        const o = 0.6 + filterT * 0.2;                  // grayscale 0.6 → 0.8
+        const t = 1 - filterT * 0.1;                    // contrast  1   → 0.9
+        const e = 1 - filterT * 0.15;                   // brightness 1  → 0.85
         z.domElement.style.filter = `grayscale(${o}) contrast(${t}) brightness(${e})`;
-        if (P.environmentRotation) { const b = 2070 * Math.PI / 180, u = 2085 * Math.PI / 180; P.environmentRotation.y = b + n * (u - b); }
+
+        if (P.environmentRotation) {
+            const b = 2070 * Math.PI / 180, u = 2085 * Math.PI / 180;
+            P.environmentRotation.y = b + n * (u - b);
+        }
     }
     
     z.render(P, Y); requestAnimationFrame(pe);
