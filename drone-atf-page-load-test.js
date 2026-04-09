@@ -274,7 +274,8 @@ fe.load(Ue, r => {
     const M = [
         { cam: new E(-23.705, 16.498, -19.656), tgt: new E(0.6, 1.60, 0) },
         { cam: new E(-38.986, 29.477, 0), tgt: new E(0.6, 0.98, 0) },
-        { cam: new E(-29.263, 37.163, 0.053), tgt: new E(0.6, 1.0, 0) }
+        { cam: new E(-29.263, 37.163, 0.053), tgt: new E(0.6, 1.0, 0) },
+        { cam: new E(-29.263, 37.163, 0.053), tgt: new E(0.6, 3.5, 0) }     
     ];
     let x = 0, k = 0;
 
@@ -286,17 +287,12 @@ fe.load(Ue, r => {
     a(0);
 
     if (!ie) {
-        const finishEarlyVh = 150;
-
         window.addEventListener("scroll", () => {
-            const tr = document.getElementById("scenes-track");
+            // Atualizado para usar o ID específico e evitar conflitos com outros section_component
+            const tr = document.getElementById("atf-drone-section");
             if (tr) {
                 const rect = tr.getBoundingClientRect();
-                
-                const offsetPx = (finishEarlyVh / 100) * window.innerHeight;
-                
-                const dist = tr.offsetHeight - window.innerHeight - offsetPx;
-                
+                const dist = tr.offsetHeight - window.innerHeight;
                 x = dist > 0 ? Math.max(0, Math.min(1, -rect.top / dist)) : 0;
             } else {
                 const s = document.documentElement.scrollHeight - window.innerHeight;
