@@ -14,15 +14,6 @@ const Ee = { bobAmp: 0.04, bobPeriod: 5, stallPeriod: 3, stallDepth: 0.35, pitch
 
 function ee(r) { return 1 - Math.pow(1 - r, 3); }
 
-/* ------------------------------------------------------------------ */
-/*  CONFIG                                                             */
-/*  DRONE_SCROLL_END — camera animation finishes at this scroll frac.  */
-/*  SLIDE_Y_VH — how far down (in vh) the drone travels while the     */
-/*    div-block-2 is sticky. Adjust to taste.                          */
-/* ------------------------------------------------------------------ */
-const DRONE_SCROLL_END = 0.55;
-const SLIDE_Y_VH       = 30;    // total downward travel in vh
-
 const $e = (r, n) => {
     const o = r.geometry;
     if (!o) return;
@@ -192,9 +183,6 @@ if (!D) {
 D.innerHTML = "";
 D.appendChild(z.domElement);
 
-/* grab the wrapper we'll translateY */
-const droneWrapper = document.querySelector(".home-hero_drone") || (D ? D.parentElement : null);
-
 const ie = window !== window.parent;
 const De = new ye(9351106, 5785656, 0.8);
 P.add(De);
@@ -302,7 +290,7 @@ fe.load(Ue, r => {
             const tr = document.getElementById("scenes-track");
             if (tr) {
                 const rect = tr.getBoundingClientRect();
-                const dist = tr.offsetHeight - window.innerHeight;
+                const dist = tr.offsetHeight - window.innerHeight - window.innerHeight * 0.7;
                 x = dist > 0 ? Math.max(0, Math.min(1, -rect.top / dist)) : 0;
             } else {
                 const s = document.documentElement.scrollHeight - window.innerHeight;
@@ -327,17 +315,7 @@ function pe() {
     if (window.__droneScrollState && window.__droneApplyPose) {
         const n = window.__droneScrollState, o = n.getScrollT();
         let t = n.getSmoothT(); t += (o - t) * 0.06; if (Math.abs(o - t) < 1e-4) t = o;
-        n.setSmoothT(t);
-
-        /* camera finishes early */
-        const droneT = Math.min(t / DRONE_SCROLL_END, 1);
-        window.__droneApplyPose(droneT);
-
-        /* slide the whole drone wrapper down */
-        if (droneWrapper) {
-            const yOffset = t * SLIDE_Y_VH;
-            droneWrapper.style.transform = `translateY(${yOffset}vh)`;
-        }
+        n.setSmoothT(t); window.__droneApplyPose(t);
     }
     
     if (N) {
@@ -347,19 +325,9 @@ function pe() {
     }
     
     if (window.__droneScrollState) {
-        const rawT = window.__droneScrollState.getSmoothT();
-        const n = Math.min(rawT / DRONE_SCROLL_END, 1);
-
-        const filterT = Math.min(n / 0.5, 1);
-        const o = 0.6 + filterT * 0.2;
-        const t = 1 - filterT * 0.1;
-        const e = 1 - filterT * 0.15;
+        const n = Math.min(window.__droneScrollState.getSmoothT() / 0.5, 1), o = 0.6 + n * 0.2, t = 1 - n * 0.1, e = 1 - n * 0.15;
         z.domElement.style.filter = `grayscale(${o}) contrast(${t}) brightness(${e})`;
-
-        if (P.environmentRotation) {
-            const b = 2070 * Math.PI / 180, u = 2085 * Math.PI / 180;
-            P.environmentRotation.y = b + n * (u - b);
-        }
+        if (P.environmentRotation) { const b = 2070 * Math.PI / 180, u = 2085 * Math.PI / 180; P.environmentRotation.y = b + n * (u - b); }
     }
     
     z.render(P, Y); requestAnimationFrame(pe);
