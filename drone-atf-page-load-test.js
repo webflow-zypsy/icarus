@@ -286,7 +286,7 @@ fe.load(Ue, r => {
     a(0);
 
     if (!ie) {
-        const finishEarlyVh = 80;
+        const finishEarlyVh = 150;
 
         window.addEventListener("scroll", () => {
             const tr = document.getElementById("scenes-track");
