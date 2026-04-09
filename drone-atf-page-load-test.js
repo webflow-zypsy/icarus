@@ -15,29 +15,13 @@ const Ee = { bobAmp: 0.04, bobPeriod: 5, stallPeriod: 3, stallDepth: 0.35, pitch
 function ee(r) { return 1 - Math.pow(1 - r, 3); }
 
 /* ------------------------------------------------------------------ */
-/*  SCROLL-LOCK & DRONE SLIDE CONFIG                                   */
-/*                                                                     */
-/*  DRONE_SCROLL_END — fraction of scenes-track scroll at which the    */
-/*    3D camera animation finishes.                                    */
-/*                                                                     */
-/*  DRONE_SLIDE — while div-block-2 is sticky the canvas wrapper       */
-/*    translates from center-screen downward so the drone "lands"      */
-/*    over the Meet Apollo heading on the left, leaving the right      */
-/*    column readable.                                                 */
-/*                                                                     */
-/*  Adjust SLIDE_START / SLIDE_END to control when the slide begins    */
-/*  and finishes relative to the raw scroll 0→1.                       */
-/*  SLIDE_Y_VH is how many vh the drone moves down.                    */
-/*  SLIDE_X_VW is how many vw the drone moves left (negative = left).  */
-/*  SLIDE_SCALE shrinks the drone slightly as it settles.              */
+/*  CONFIG                                                             */
+/*  DRONE_SCROLL_END — camera animation finishes at this scroll frac.  */
+/*  SLIDE_Y_VH — how far down (in vh) the drone travels while the     */
+/*    div-block-2 is sticky. Adjust to taste.                          */
 /* ------------------------------------------------------------------ */
 const DRONE_SCROLL_END = 0.55;
-
-const SLIDE_START     = 0.30;   // drone starts sliding down at 30% scroll
-const SLIDE_END       = 0.55;   // finishes sliding at 55% (same as camera end)
-const SLIDE_Y_VH      = 25;     // move down 25vh from center
-const SLIDE_X_VW      = -8;     // nudge left 8vw
-const SLIDE_SCALE     = 0.75;   // scale to 75% as it settles
+const SLIDE_Y_VH       = 30;    // total downward travel in vh
 
 const $e = (r, n) => {
     const o = r.geometry;
@@ -208,9 +192,7 @@ if (!D) {
 D.innerHTML = "";
 D.appendChild(z.domElement);
 
-/* ------------------------------------------------------------------ */
-/*  Grab the drone wrapper (.home-hero_drone) so we can translate it   */
-/* ------------------------------------------------------------------ */
+/* grab the wrapper we'll translateY */
 const droneWrapper = document.querySelector(".home-hero_drone") || (D ? D.parentElement : null);
 
 const ie = window !== window.parent;
@@ -339,13 +321,6 @@ window.addEventListener("resize", () => {
     z.setSize(window.innerWidth, window.innerHeight); z.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
-/* ------------------------------------------------------------------ */
-/*  Easing helper — easeInOutCubic for smooth slide                    */
-/* ------------------------------------------------------------------ */
-function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
 function pe() {
     ae.getDelta(); const r = ae.elapsedTime;
     
@@ -354,34 +329,14 @@ function pe() {
         let t = n.getSmoothT(); t += (o - t) * 0.06; if (Math.abs(o - t) < 1e-4) t = o;
         n.setSmoothT(t);
 
-        /* ---------------------------------------------------------- */
-        /*  1) 3D CAMERA — compressed into 0 → DRONE_SCROLL_END       */
-        /*     Drone camera finishes its full animation early, then    */
-        /*     holds the final pose for the rest of the scroll.        */
-        /* ---------------------------------------------------------- */
+        /* camera finishes early */
         const droneT = Math.min(t / DRONE_SCROLL_END, 1);
         window.__droneApplyPose(droneT);
 
-        /* ---------------------------------------------------------- */
-        /*  2) SLIDE THE WRAPPER — move .home-hero_drone down & left   */
-        /*     so the drone "lands" over the Meet Apollo heading.      */
-        /*     This is a CSS transform on the sticky wrapper, not a    */
-        /*     3D camera change.                                       */
-        /* ---------------------------------------------------------- */
+        /* slide the whole drone wrapper down */
         if (droneWrapper) {
-            let slideProgress = 0;
-            if (t >= SLIDE_END) {
-                slideProgress = 1;
-            } else if (t > SLIDE_START) {
-                slideProgress = (t - SLIDE_START) / (SLIDE_END - SLIDE_START);
-            }
-            const easedSlide = easeInOutCubic(slideProgress);
-
-            const yOffset = easedSlide * SLIDE_Y_VH;       // vh units
-            const xOffset = easedSlide * SLIDE_X_VW;       // vw units
-            const scale   = 1 - easedSlide * (1 - SLIDE_SCALE);
-
-            droneWrapper.style.transform = `translate(${xOffset}vw, ${yOffset}vh) scale(${scale})`;
+            const yOffset = t * SLIDE_Y_VH;
+            droneWrapper.style.transform = `translateY(${yOffset}vh)`;
         }
     }
     
@@ -392,9 +347,6 @@ function pe() {
     }
     
     if (window.__droneScrollState) {
-        /* ---------------------------------------------------------- */
-        /*  FILTER RAMP — also uses the compressed drone progress      */
-        /* ---------------------------------------------------------- */
         const rawT = window.__droneScrollState.getSmoothT();
         const n = Math.min(rawT / DRONE_SCROLL_END, 1);
 
