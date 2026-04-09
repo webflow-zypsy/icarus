@@ -15,12 +15,29 @@ const Ee = { bobAmp: 0.04, bobPeriod: 5, stallPeriod: 3, stallDepth: 0.35, pitch
 function ee(r) { return 1 - Math.pow(1 - r, 3); }
 
 /* ------------------------------------------------------------------ */
-/*  SCROLL-LOCK CONFIG                                                 */
-/*  droneScrollEnd: the fraction of total scroll at which the drone    */
-/*    finishes its camera animation and "parks". The remaining scroll  */
-/*    holds the drone in its final pose while Meet Apollo is readable. */
+/*  SCROLL-LOCK & DRONE SLIDE CONFIG                                   */
+/*                                                                     */
+/*  DRONE_SCROLL_END — fraction of scenes-track scroll at which the    */
+/*    3D camera animation finishes.                                    */
+/*                                                                     */
+/*  DRONE_SLIDE — while div-block-2 is sticky the canvas wrapper       */
+/*    translates from center-screen downward so the drone "lands"      */
+/*    over the Meet Apollo heading on the left, leaving the right      */
+/*    column readable.                                                 */
+/*                                                                     */
+/*  Adjust SLIDE_START / SLIDE_END to control when the slide begins    */
+/*  and finishes relative to the raw scroll 0→1.                       */
+/*  SLIDE_Y_VH is how many vh the drone moves down.                    */
+/*  SLIDE_X_VW is how many vw the drone moves left (negative = left).  */
+/*  SLIDE_SCALE shrinks the drone slightly as it settles.              */
 /* ------------------------------------------------------------------ */
-const DRONE_SCROLL_END = 0.55; // drone animation finishes at 55% of track scroll
+const DRONE_SCROLL_END = 0.55;
+
+const SLIDE_START     = 0.30;   // drone starts sliding down at 30% scroll
+const SLIDE_END       = 0.55;   // finishes sliding at 55% (same as camera end)
+const SLIDE_Y_VH      = 25;     // move down 25vh from center
+const SLIDE_X_VW      = -8;     // nudge left 8vw
+const SLIDE_SCALE     = 0.75;   // scale to 75% as it settles
 
 const $e = (r, n) => {
     const o = r.geometry;
@@ -191,6 +208,11 @@ if (!D) {
 D.innerHTML = "";
 D.appendChild(z.domElement);
 
+/* ------------------------------------------------------------------ */
+/*  Grab the drone wrapper (.home-hero_drone) so we can translate it   */
+/* ------------------------------------------------------------------ */
+const droneWrapper = document.querySelector(".home-hero_drone") || (D ? D.parentElement : null);
+
 const ie = window !== window.parent;
 const De = new ye(9351106, 5785656, 0.8);
 P.add(De);
@@ -317,6 +339,13 @@ window.addEventListener("resize", () => {
     z.setSize(window.innerWidth, window.innerHeight); z.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
+/* ------------------------------------------------------------------ */
+/*  Easing helper — easeInOutCubic for smooth slide                    */
+/* ------------------------------------------------------------------ */
+function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 function pe() {
     ae.getDelta(); const r = ae.elapsedTime;
     
@@ -326,14 +355,34 @@ function pe() {
         n.setSmoothT(t);
 
         /* ---------------------------------------------------------- */
-        /*  REMAPPED DRONE PROGRESS                                    */
-        /*  The raw scroll (t) goes 0→1 over the full scenes-track.   */
-        /*  We compress the drone camera animation into 0→DRONE_SCROLL */
-        /*  _END so it reaches its final pose early. The remaining     */
-        /*  scroll keeps the drone parked while Meet Apollo is read.   */
+        /*  1) 3D CAMERA — compressed into 0 → DRONE_SCROLL_END       */
+        /*     Drone camera finishes its full animation early, then    */
+        /*     holds the final pose for the rest of the scroll.        */
         /* ---------------------------------------------------------- */
         const droneT = Math.min(t / DRONE_SCROLL_END, 1);
         window.__droneApplyPose(droneT);
+
+        /* ---------------------------------------------------------- */
+        /*  2) SLIDE THE WRAPPER — move .home-hero_drone down & left   */
+        /*     so the drone "lands" over the Meet Apollo heading.      */
+        /*     This is a CSS transform on the sticky wrapper, not a    */
+        /*     3D camera change.                                       */
+        /* ---------------------------------------------------------- */
+        if (droneWrapper) {
+            let slideProgress = 0;
+            if (t >= SLIDE_END) {
+                slideProgress = 1;
+            } else if (t > SLIDE_START) {
+                slideProgress = (t - SLIDE_START) / (SLIDE_END - SLIDE_START);
+            }
+            const easedSlide = easeInOutCubic(slideProgress);
+
+            const yOffset = easedSlide * SLIDE_Y_VH;       // vh units
+            const xOffset = easedSlide * SLIDE_X_VW;       // vw units
+            const scale   = 1 - easedSlide * (1 - SLIDE_SCALE);
+
+            droneWrapper.style.transform = `translate(${xOffset}vw, ${yOffset}vh) scale(${scale})`;
+        }
     }
     
     if (N) {
@@ -344,17 +393,15 @@ function pe() {
     
     if (window.__droneScrollState) {
         /* ---------------------------------------------------------- */
-        /*  FILTER RAMP — also compressed into DRONE_SCROLL_END       */
-        /*  so the grayscale / contrast / brightness settle at the    */
-        /*  same moment the drone parks.                              */
+        /*  FILTER RAMP — also uses the compressed drone progress      */
         /* ---------------------------------------------------------- */
         const rawT = window.__droneScrollState.getSmoothT();
         const n = Math.min(rawT / DRONE_SCROLL_END, 1);
 
-        const filterT = Math.min(n / 0.5, 1);          // reaches max at halfway through drone anim
-        const o = 0.6 + filterT * 0.2;                  // grayscale 0.6 → 0.8
-        const t = 1 - filterT * 0.1;                    // contrast  1   → 0.9
-        const e = 1 - filterT * 0.15;                   // brightness 1  → 0.85
+        const filterT = Math.min(n / 0.5, 1);
+        const o = 0.6 + filterT * 0.2;
+        const t = 1 - filterT * 0.1;
+        const e = 1 - filterT * 0.15;
         z.domElement.style.filter = `grayscale(${o}) contrast(${t}) brightness(${e})`;
 
         if (P.environmentRotation) {
