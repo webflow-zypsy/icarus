@@ -274,7 +274,8 @@ fe.load(Ue, r => {
     const M = [
         { cam: new E(-23.705, 16.498, -19.656), tgt: new E(0.6, 1.60, 0) },
         { cam: new E(-38.986, 29.477, 0), tgt: new E(0.6, 0.98, 0) },
-        { cam: new E(-29.263, 37.163, 0.053), tgt: new E(0.6, 1.0, 0) }
+        { cam: new E(-29.263, 37.163, 0.053), tgt: new E(0.6, 1.0, 0) },
+        { cam: new E(-22.0, 28.0, -8.0), tgt: new E(0.6, 4.0, 0) }
     ];
     let x = 0, k = 0;
 
@@ -290,7 +291,7 @@ fe.load(Ue, r => {
             const tr = document.getElementById("scenes-track");
             if (tr) {
                 const rect = tr.getBoundingClientRect();
-                const dist = tr.offsetHeight - window.innerHeight - window.innerHeight * 1.2;
+                const dist = tr.offsetHeight - window.innerHeight - window.innerHeight * 0.3;
                 x = dist > 0 ? Math.max(0, Math.min(1, -rect.top / dist)) : 0;
             } else {
                 const s = document.documentElement.scrollHeight - window.innerHeight;
