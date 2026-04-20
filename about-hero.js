@@ -42,11 +42,12 @@ renderer.setSize(innerWidth, innerHeight)
 renderer.outputColorSpace = SRGBColorSpace
 renderer.toneMapping = ACESFilmicToneMapping
 renderer.toneMappingExposure = 3.2
-renderer.domElement.style.position = "fixed"
-renderer.domElement.style.top = "0"
-renderer.domElement.style.left = "0"
-renderer.domElement.style.zIndex = "1"
-renderer.domElement.style.willChange = "clip-path, transform"
+// Canvas is position:absolute so #about-hero (overflow:hidden) clips it during the GSAP Flip.
+// Layout and z-index are owned by the Webflow/GSAP Flip container, not the canvas directly.
+renderer.domElement.style.position = "absolute"
+renderer.domElement.style.top = "50%"
+renderer.domElement.style.left = "50%"
+renderer.domElement.style.transform = "translate(-50%, -50%)"
 
 // ---------- Mount to #about-hero (same pattern as drone-atf scene-drone) ----------
 let container = document.getElementById("about-hero")
@@ -450,11 +451,24 @@ const viewAxis = new Vector3()
 const POS1 = [-12.5, -93.5, 10.5, -1.81, 0.25, 0.00,   0,   0,   0,  0.11, -0.05, -0.28, -0.11, 0.27, 2.08,  0.01,  0,    0   ]
 const POS2 = [-12.5, -93.5, 10.5, -1.73, 0.17, -0.21, -24,  -3, -41,  0.00,  0.02, -0.18, -0.11, 0.27, 2.08, -0.18,  0.00, 0.00]
 
-function getScrollProgress() {
-  const maxScroll = document.documentElement.scrollHeight - window.innerHeight
-  if (maxScroll <= 0) return 0
-  return Math.max(0, Math.min(1, window.scrollY / maxScroll))
-}
+// ---------- Scroll progress — driven by GSAP ScrollTrigger ----------
+// Raw progress is updated by ScrollTrigger; the animate loop smooths it with its own lerp.
+let heroScrollProgress = 0
+
+window.addEventListener("DOMContentLoaded", () => {
+  const gsap = window.gsap
+  const ScrollTrigger = window.ScrollTrigger
+  if (!gsap || !ScrollTrigger) return
+
+  gsap.registerPlugin(ScrollTrigger)
+
+  ScrollTrigger.create({
+    trigger: "[data-hero-flip-wrapper]",
+    start: "top top",
+    end: "bottom bottom",
+    onUpdate: (self) => { heroScrollProgress = self.progress },
+  })
+})
 
 const droneBasePos = new Vector3(POS1[0], POS1[1], POS1[2])
 let droneBaseRotX = POS1[3]
@@ -886,28 +900,10 @@ let smoothScrollT = 0
 function animate() {
   requestAnimationFrame(animate)
 
-  const scrollTarget = getScrollProgress()
-  smoothScrollT += (scrollTarget - smoothScrollT) * 0.06
+  smoothScrollT += (heroScrollProgress - smoothScrollT) * 0.06
   const scrollT = smoothScrollT
 
   applyScrollBlend(scrollT)
-
-  // Scroll-driven portrait crop + pan
-  const panX = -7 * scrollT
-
-  const cropStartW  = 100, cropEndW  = 31.1
-  const cropStartCX = 50,  cropEndCX = 41.9
-  const cropW   = cropStartW + (cropEndW - cropStartW) * scrollT
-  const cropHpx = (cropW / 100) * innerWidth * (3 / 2)
-  const cropHpct = (cropHpx / innerHeight) * 100
-  const cropCX  = (cropStartCX + (cropEndCX - cropStartCX) * scrollT) - panX
-  const cropCY  = 50
-  const insetL  = Math.max(0, cropCX - cropW / 2)
-  const insetR  = Math.max(0, 100 - cropCX - cropW / 2)
-  const insetT  = Math.max(0, cropCY - cropHpct / 2)
-  const insetB  = Math.max(0, 100 - cropCY - cropHpct / 2)
-  renderer.domElement.style.clipPath = `inset(${insetT}% ${insetR}% ${insetB}% ${insetL}%)`
-  renderer.domElement.style.transform = `translate(${panX}%, 0%)`
 
   // Update orbit uniforms
   cubeMat.uniforms.uOrbitAngle.value = imageOrbitAngle
