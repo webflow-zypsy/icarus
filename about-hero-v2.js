@@ -45,8 +45,8 @@ renderer.toneMappingExposure = 3.2
 // Canvas is position:absolute so #about-hero (overflow:hidden) clips it during the GSAP Flip.
 // Layout and z-index are owned by the Webflow/GSAP Flip container, not the canvas directly.
 renderer.domElement.style.position = "absolute"
-renderer.domElement.style.top = "0"
-renderer.domElement.style.left = "0"
+//renderer.domElement.style.top = "0"
+//renderer.domElement.style.left = "0"
 
 // ---------- Mount to #about-hero (same pattern as drone-atf scene-drone) ----------
 let container = document.getElementById("about-hero")
