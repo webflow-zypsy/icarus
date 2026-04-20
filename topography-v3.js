@@ -44,7 +44,7 @@ renderer.setSize(innerWidth, innerHeight)
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.5 // Original 1.15
+renderer.toneMappingExposure = 1.5
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
@@ -220,13 +220,13 @@ window.addEventListener("DOMContentLoaded", () => {
     ease: "none",
     scrollTrigger: {
       trigger: "[data-strat-track]",
-      start: "top 5%",
+      start: "top 10%",
       end: "bottom top",
-      scrub: 1.5,
+      scrub: true,
       invalidateOnRefresh: true,
     },
     onUpdate: () => {
-      const t = easeInOutCubic(scrollProxy.progress)
+      const t = easeInOutCubic(scrollProxy.progress * 0.5)
       camera.position.lerpVectors(waypoints[0].pos, waypoints[1].pos, t)
       _target.lerpVectors(waypoints[0].target, waypoints[1].target, t)
       camera.lookAt(_target)
