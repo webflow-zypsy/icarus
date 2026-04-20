@@ -226,7 +226,7 @@ window.addEventListener("DOMContentLoaded", () => {
       invalidateOnRefresh: true,
     },
     onUpdate: () => {
-      const t = easeInOutCubic(scrollProxy.progress * 0.5)
+      const t = easeInOutCubic(scrollProxy.progress * 0.75)
       camera.position.lerpVectors(waypoints[0].pos, waypoints[1].pos, t)
       _target.lerpVectors(waypoints[0].target, waypoints[1].target, t)
       camera.lookAt(_target)
