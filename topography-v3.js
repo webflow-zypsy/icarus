@@ -221,7 +221,7 @@ window.addEventListener("DOMContentLoaded", () => {
     scrollTrigger: {
       trigger: "[data-strat-track]",
       start: "top 5%",
-      end: "bottom center",
+      end: "bottom top",
       scrub: 1.5,
       invalidateOnRefresh: true,
     },
