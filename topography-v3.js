@@ -48,12 +48,15 @@ renderer.toneMappingExposure = 1.15
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
-// Full-screen background canvas
-renderer.domElement.style.position = "fixed"
-renderer.domElement.style.top = "0"
-renderer.domElement.style.left = "0"
-renderer.domElement.style.zIndex = "0"
-document.body.appendChild(renderer.domElement)
+// Mount to #strat-scene
+let container = document.getElementById("strat-scene")
+if (!container) {
+  container = document.createElement("div")
+  container.id = "strat-scene"
+  document.body.appendChild(container)
+}
+container.innerHTML = ""
+container.appendChild(renderer.domElement)
 
 // ---------- Lighting ----------
 scene.add(new THREE.AmbientLight(0xffffff, params.ambientLevel))
