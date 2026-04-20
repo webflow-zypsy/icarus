@@ -48,6 +48,7 @@ renderer.domElement.style.position = "absolute"
 renderer.domElement.style.top = "50%"
 renderer.domElement.style.left = "50%"
 renderer.domElement.style.transform = "translate(-50%, -50%)"
+renderer.domElement.style.height = "100%"
 
 // ---------- Mount to #about-hero (same pattern as drone-atf scene-drone) ----------
 let container = document.getElementById("about-hero")
