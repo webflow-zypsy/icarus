@@ -7,10 +7,10 @@ import {
   MeshPhysicalMaterial, HemisphereLight,
   CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace, NoColorSpace,
   RepeatWrapping, PMREMGenerator, Euler, ACESFilmicToneMapping, Quaternion,
-} from "three"
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js"
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js"
+} from "https://esm.sh/three@0.176.0"
+import { GLTFLoader } from "https://esm.sh/three@0.176.0/examples/jsm/loaders/GLTFLoader.js"
+import { DRACOLoader } from "https://esm.sh/three@0.176.0/examples/jsm/loaders/DRACOLoader.js"
+import { RGBELoader } from "https://esm.sh/three@0.176.0/examples/jsm/loaders/RGBELoader.js"
 
 // ---------- CDN asset URLs (same repo as drone-atf) ----------
 const SKY_URL   = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/green-512.hdr"
