@@ -222,7 +222,7 @@ window.addEventListener("DOMContentLoaded", () => {
       trigger: "[data-strat-track]",
       start: "top center",
       end: "bottom top",
-      scrub: 2,
+      scrub: 1.25,
       invalidateOnRefresh: true,
     },
     onUpdate: () => {
