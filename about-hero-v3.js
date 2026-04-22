@@ -531,21 +531,13 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   let slideElapsed = 0
   let slideDriftX  = 0
   let slideDriftY  = 0
-
-  // One-shot animation state.
-  // cumulativeDriftX/Y tracks the total offset added so far; it is frozen once
-  // animDone is true and always re-applied on top of the scroll-blend base value.
-  let cumulativeDriftX = 0
-  let cumulativeDriftY = 0
-  let animDone = false
+  let animDone     = false
 
   function resetSlideDrift() {
-    slideElapsed     = 0
-    slideDriftX      = 0
-    slideDriftY      = 0
-    cumulativeDriftX = 0
-    cumulativeDriftY = 0
-    animDone         = false
+    slideElapsed = 0
+    slideDriftX  = 0
+    slideDriftY  = 0
+    animDone     = false
   }
 
   // ---------- Drone: textures, materials, lighting, env map, model ----------
@@ -972,23 +964,23 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     lastTime  = now
     bobTime  += dt
 
-    // Floor texture slide drift — one-shot: plays once over 20 s then holds at
-    // the final offset. Resets to zero when the section leaves the viewport.
-    if (slideSpeed > 0 && !animDone) {
-      slideElapsed += dt
-      if (slideElapsed >= 20) {
-        animDone = true  // freeze; do not reset — hold the accumulated offset
-      } else {
-        slideDriftX += Math.cos(slideDirection) * slideSpeed * 0.01
-        slideDriftY += Math.sin(slideDirection) * slideSpeed * 0.01
-        cumulativeDriftX += slideDriftX
-        cumulativeDriftY += slideDriftY
+    // Floor texture slide drift — one-shot: slideDriftX/Y grow each frame until
+    // 20 s then freeze at their final value. applyScrollBlend() resets the base
+    // uniform each frame, so adding the frozen final drift each frame holds the
+    // texture at its last position. resetSlideDrift() zeroes everything on exit.
+    if (slideSpeed > 0) {
+      if (!animDone) {
+        slideElapsed += dt
+        if (slideElapsed >= 20) {
+          animDone = true          // stop growing — slideDriftX/Y hold their value
+        } else {
+          slideDriftX += Math.cos(slideDirection) * slideSpeed * 0.01
+          slideDriftY += Math.sin(slideDirection) * slideSpeed * 0.01
+        }
       }
+      cubeMat.uniforms.uFloorOffsetX.value += slideDriftX
+      cubeMat.uniforms.uFloorOffsetY.value += slideDriftY
     }
-    // Always re-apply the frozen (or still-growing) cumulative drift on top of
-    // the scroll-blend base that applyScrollBlend() just wrote this frame.
-    cubeMat.uniforms.uFloorOffsetX.value += cumulativeDriftX
-    cubeMat.uniforms.uFloorOffsetY.value += cumulativeDriftY
 
     // Drone hover bob
     if (droneObject) {
