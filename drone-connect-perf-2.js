@@ -271,6 +271,8 @@ const i = et.fromEquirectangular(t).texture;
 S.environment = i;
 S.environmentRotation = new be(-1070 * Math.PI / 180, 1960 * Math.PI / 180, 0);
 t.dispose();
+_preWarmed = false;
+preWarmScene();
 });
 
 new Le().load(Wt, t => {
