@@ -568,8 +568,11 @@ let _preWarmed = false;
 function preWarmScene() {
   if (_preWarmed) return;
   _preWarmed = true;
-  x.compile(Je, oe); // compila shader do céu
-  x.compile(S, C);   // compila shaders do drone e nuvens
+  // Render completo (igual a lt()) para forçar upload de shaders, texturas E buffers de geometria.
+  // Chamado durante o preloader — canvas fora do viewport, render invisível ao usuário.
+  x.autoClear = true; x.render(Je, oe);
+  x.autoClear = false; x.render(S, C);
+  x.autoClear = true;
 }
 
 function startLt() {
