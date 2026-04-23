@@ -291,12 +291,12 @@ const Vt = "varying vec2 vUv;\nvoid main() {\n  vUv = uv;\n  gl_Position = proje
 const jt = "uniform sampler2D tCloud;\nuniform float uOpacity;\nuniform float uEdgeFade;\nvarying vec2 vUv;\nvoid main() {\n  vec4 tex = texture2D(tCloud, vUv);\n  float fadeL = smoothstep(0.0, uEdgeFade, vUv.x);\n  float fadeR = smoothstep(0.0, uEdgeFade, 1.0 - vUv.x);\n  float fadeB = smoothstep(0.0, uEdgeFade, vUv.y);\n  float fadeT = smoothstep(0.0, uEdgeFade, 1.0 - vUv.y);\n  float edge = fadeL * fadeR * fadeB * fadeT;\n  gl_FragColor = vec4(tex.rgb, tex.a * uOpacity * edge);\n}";
 
 function qt(t, i, n, o, e, r) {
-Gt.load(t, s => {
-s.colorSpace = xe;
-const a = new Ye({ uniforms: { tCloud: { value: s }, uOpacity: { value: 0.85 }, uEdgeFade: { value: Bt } }, vertexShader: Vt, fragmentShader: jt, transparent: true, depthWrite: false, side: se });
+// Cria material + mesh imediatamente (texture null) para o preWarmScene() compilar o shader.
+// Texture é carregada async e atualiza só o uniform — sem recompilação.
+const a = new Ye({ uniforms: { tCloud: { value: null }, uOpacity: { value: 0.85 }, uEdgeFade: { value: Bt } }, vertexShader: Vt, fragmentShader: jt, transparent: true, depthWrite: false, side: se });
 const c = new bt(e, r), l = new Ke(c, a);
 l.position.set(i, n, o); ve.add(l); ze.push(l);
-});
+Gt.load(t, s => { s.colorSpace = xe; a.uniforms.tCloud.value = s; });
 }
 qt(cloudUrl, -12, -4, -8, 28, 14);
 
@@ -533,7 +533,7 @@ A.rotation.set(ue.x + k * e.pitchAmp, ue.y + we.value, ue.z);
 if (V._baseScalar) A.scale.setScalar(V._baseScalar * V.value);
 }
 
-x.domElement.style.filter = ""; j.update();
+j.update();
 const n = W * W * W;
 N.uniforms.uNightMix.value = n * 0.7;
 const o = 0.85 - 0.75 * n;
@@ -543,7 +543,7 @@ for (const e of ze) e.material.uniforms.uOpacity.value = o;
 x.toneMappingExposure = 3.2 + (2.4 - 3.2) * n;
 S.environmentIntensity = 1 - 0.95 * n;
 I.intensity = 0.15 * n;
-x.domElement.style.filter = `grayscale(${n * 0.4})`;
+x.domElement.style.filter = n > 0.001 ? `grayscale(${(n * 0.4).toFixed(3)})` : "";
 
 let Me = nightTintEl;
   if (Me) Me.style.opacity = n * 0.15;
