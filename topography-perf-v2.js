@@ -55,6 +55,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     renderer.toneMappingExposure = 1.5
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.shadowMap.autoUpdate = false
   } catch (e) {
     activateFallback("strat-scene"); return
   }
@@ -147,6 +148,8 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
     layerGroup.position.set(0, -getLayerY(1, totalLayers, GAP_START) / 2, 0)
 
+    // Compute shadow map once — geometry and light are static, only camera moves
+    renderer.shadowMap.needsUpdate = true
     // Re-warm with geometry loaded: compiles MeshStandardMaterial + shadow shaders
     _preWarmed = false
     preWarmScene()
@@ -252,11 +255,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   )
   observer.observe(container)
 
-  // Pre-warm #3: when the page preloader exits (heroTrigger.click),
-  // force a fresh render so shaders are compiled before the user can scroll
+  // When the page preloader exits, start the RAF immediately so the GPU is
+  // already rendering frames before the user scrolls to this section.
+  // IntersectionObserver still pauses the loop when the section leaves the viewport.
   document.querySelector(".hero-animation-trigger")?.addEventListener("click", () => {
+    isVisible = true
     _preWarmed = false
     preWarmScene()
+    startLoop()
   }, { once: true })
 
 })()
