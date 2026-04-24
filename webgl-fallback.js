@@ -137,6 +137,18 @@ function _injectFallbackStyles() {
         visibility: visible !important;
       }
     }
+
+    /* Tablet + Mobile — max-width: 991px */
+    [data-threejs-fallback="tablet-mobile"] {
+      display: none !important;
+    }
+    @media (max-width: 991px) {
+      [data-threejs-fallback="tablet-mobile"] {
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+    }
   `
   document.head.appendChild(style)
 }
