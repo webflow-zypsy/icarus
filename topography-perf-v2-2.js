@@ -14,8 +14,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   if (!webglAvailable()) { activateFallback("strat-scene"); return }
 
   // ---------- Browser detection ----------
-  // Safari has notoriously slow SSAO performance and synchronous shader
-  // compilation via Metal — we skip the SSAO pass entirely there.
   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
   // ---------- CDN asset URL ----------
@@ -65,6 +63,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     activateFallback("strat-scene"); return
   }
 
+  // Hide the canvas until the first real frame has been rendered, then fade
+  // it in. This is what eliminates the "flick" — the user only ever sees the
+  // canvas appear via a CSS opacity transition with the correct first frame
+  // already drawn on it, never an empty/partial state popping into existence.
+  const canvas = renderer.domElement
+  canvas.style.opacity = "0"
+  canvas.style.transition = "opacity 400ms ease-out"
+
   // Mount to #strat-scene
   let container = document.getElementById("strat-scene")
   if (!container) {
@@ -73,7 +79,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     document.body.appendChild(container)
   }
   container.innerHTML = ""
-  container.appendChild(renderer.domElement)
+  container.appendChild(canvas)
 
   // ---------- Lighting ----------
   scene.add(new THREE.AmbientLight(0xffffff, params.ambientLevel))
@@ -82,8 +88,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const EXT = 30
   const dirLight = new THREE.DirectionalLight(0xffffff, params.shadowStrength)
   dirLight.castShadow = true
-  // 2048 is visually near-identical to 4096 for a static directional light
-  // at this distance, and uses 1/4 the VRAM (16 MB vs 64 MB depth texture).
   dirLight.shadow.mapSize.set(2048, 2048)
   dirLight.shadow.camera.near = 0.1
   dirLight.shadow.camera.far = 60
@@ -112,9 +116,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     color: params.color, roughness: 0.85, metalness: 0, side: THREE.DoubleSide,
   })
 
-  // ---------- Mirror grid ----------
-  // With GRID=1, half=0, so only cell (0,0) exists → always bucket 0, mirror sx=1 sz=1.
-  // We skip the bucket loop and handle a single tile directly.
+  // ---------- Layer Y helper ----------
   const GAP_START = 0.01
 
   function getLayerY(num, total, gap) {
@@ -123,7 +125,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   }
 
   // ---------- Post-processing ----------
-  // Build composer first so it exists when the loader callback warms it.
   const composer = new EffectComposer(renderer)
   composer.addPass(new RenderPass(scene, camera))
 
@@ -140,21 +141,31 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   composer.addPass(new OutputPass())
 
   // ---------- Pre-warm ----------
-  // Async shader compilation. Uses KHR_parallel_shader_compile where available
-  // (avoids blocking the main thread on Safari/Mac, which is the source of the
-  // freeze when this section first scrolls into view).
   async function preWarmScene() {
-    // compileAsync covers everything in the scene graph (MeshStandardMaterial
-    // + its shadow pass variant). Idempotent — already-compiled shaders are
-    // skipped, so it's safe to call repeatedly.
+    // Compile MeshStandardMaterial + shadow shader variants in the background.
     await renderer.compileAsync(scene, camera)
-
-    // compileAsync does NOT cover EffectComposer passes (Bloom, Output, etc.),
-    // so we trigger one cheap offscreen render to compile those shaders too.
-    const w = innerWidth, h = innerHeight
-    composer.setSize(64, 64)
+    // One full-size render to warm post-processing pass shaders AND leave a
+    // correct first frame on the canvas so the fade-in reveals real content.
     composer.render()
-    composer.setSize(w, h)
+  }
+
+  // ---------- Render-on-demand ----------
+  // The scene is static except when the user scrolls (camera moves via GSAP
+  // onUpdate). The previous always-on RAF loop wasted GPU on identical frames
+  // and could drop frames during scroll on Mac, which is what shows up as the
+  // "flick". Rendering only when something actually changes fixes both.
+  let isVisible = false
+  let isReady = false
+  let renderQueued = false
+
+  function requestRender() {
+    if (!isReady || !isVisible) return
+    if (renderQueued) return
+    renderQueued = true
+    requestAnimationFrame(() => {
+      renderQueued = false
+      composer.render()
+    })
   }
 
   // ---------- GLB loader ----------
@@ -167,13 +178,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   loader.setDRACOLoader(draco)
 
   loader.load(MODEL_URL, async (gltf) => {
-    // If the RAF loop is already running (user scrolled into view before the
-    // GLB finished downloading), pause it before we add new geometry — that
-    // way the next composer.render() doesn't trigger a sync compile of the
-    // newly-added MeshStandardMaterial on Safari.
-    const wasRunning = rafId !== null
-    if (wasRunning) stopLoop()
-
     const layerGeometries = new Map()
     gltf.scene.traverse((child) => {
       if (child.isMesh && child.name.startsWith("layer_"))
@@ -197,16 +201,18 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
     layerGroup.position.set(0, -getLayerY(1, totalLayers, GAP_START) / 2, 0)
 
-    // Compute shadow map once — geometry and light are static, only camera moves
+    // Compute shadow map once — geometry and light are static.
     renderer.shadowMap.needsUpdate = true
 
-    // Async-compile every shader the section needs before any user-visible
-    // render happens. On Safari this yields control back to the browser
-    // between chunks instead of freezing the main thread.
+    // Compile shaders + render the initial frame onto the (still hidden) canvas.
     await preWarmScene()
 
-    // Resume the loop if we paused it above.
-    if (wasRunning && isVisible) startLoop()
+    // Mark ready and fade the canvas in. By this point the canvas already has
+    // a correct rendered frame, so the user sees a clean opacity fade rather
+    // than the canvas snapping into existence.
+    isReady = true
+    canvas.style.opacity = "1"
+    requestRender()
   })
 
   // ---------- Resize ----------
@@ -216,6 +222,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     renderer.setSize(innerWidth, innerHeight)
     renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
     composer.setSize(innerWidth, innerHeight)
+    requestRender()
   })
 
   // ---------- GSAP ScrollTrigger — camera animation ----------
@@ -248,47 +255,26 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
         camera.position.lerpVectors(waypoints[0].pos, waypoints[1].pos, t)
         _target.lerpVectors(waypoints[0].target, waypoints[1].target, t)
         camera.lookAt(_target)
+        requestRender()
       },
     })
   })
 
-  // ---------- Visibility guard — pause RAF when off-screen ----------
-  let isVisible = false
-  let rafId = null
-
-  function startLoop() {
-    if (rafId !== null) return
-    rafId = requestAnimationFrame(loop)
-  }
-
-  function stopLoop() {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId)
-      rafId = null
-    }
-  }
-
-  function loop() {
-    rafId = null
-    if (!isVisible) return
-    composer.render()
-    rafId = requestAnimationFrame(loop)
-  }
-
+  // ---------- Visibility tracking ----------
   const observer = new IntersectionObserver(
     (entries) => {
       isVisible = entries[0].isIntersecting
-      isVisible ? startLoop() : stopLoop()
+      if (isVisible) requestRender()
     },
     { threshold: 0 }
   )
   observer.observe(container)
 
-  // When the page preloader exits, mark the section visible so RAF can start
-  // as soon as IntersectionObserver fires (or immediately, if already in view).
+  // Preloader hook — mark visible early so the first render is queued the
+  // moment IntersectionObserver fires (or immediately if already in view).
   document.querySelector(".hero-animation-trigger")?.addEventListener("click", () => {
     isVisible = true
-    startLoop()
+    requestRender()
   }, { once: true })
 
 })()
