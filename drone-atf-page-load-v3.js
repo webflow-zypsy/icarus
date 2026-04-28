@@ -305,6 +305,16 @@ fe.load(Ue, r => {
     window.addEventListener("message", s => { if (s.data && typeof s.data.scrollProgress == "number") x = s.data.scrollProgress; });
     window.__droneApplyPose = a;
     window.__droneScrollState = { getScrollT: () => x, getSmoothT: () => k, setSmoothT: s => { k = s; } };
+
+    // ─── EVENTO DE SUCESSO ───────────────────────────────────────────────────
+    // Avisa o preloader que este modelo terminou de processar e já está na cena
+    window.dispatchEvent(new Event('scene_loaded'));
+
+}, undefined, err => {
+    console.error("[scene-drone] Model load failed:", err);
+    // ─── EVENTO DE ERRO ──────────────────────────────────────────────────────
+    // Avisa mesmo em caso de erro para não travar a tela de carregamento no 85%
+    window.dispatchEvent(new Event('scene_loaded'));
 });
 
 window.addEventListener("resize", () => {
