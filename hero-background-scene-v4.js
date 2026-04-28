@@ -110,8 +110,18 @@ window.addEventListener("load", () => {
       tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping
       skyA = makeSkyMesh(tex)
       renderer.setClearColor(0x000000, 1)
-      triggerHeroAnimation()
-    }, undefined, err => console.error("[bg-scene] Image load failed:", err))
+      
+      // Avisa o preloader que esta cena carregou com sucesso
+      window.dispatchEvent(new Event('scene_loaded'))
+      
+      if (typeof triggerHeroAnimation === 'function') {
+        triggerHeroAnimation()
+      }
+    }, undefined, err => {
+      console.error("[bg-scene] Image load failed:", err)
+      // Avisa o preloader mesmo em caso de erro para não travar a tela de carregamento
+      window.dispatchEvent(new Event('scene_loaded'))
+    })
 
     const poses = [
       { cam: new THREE.Vector3(-2.820, 1.965, -2.340), tgt: new THREE.Vector3(0, 0.3, 0) },
