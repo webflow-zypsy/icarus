@@ -15,19 +15,15 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
 ;(function () {
 
-  // ---------- WebGL guard ----------
   if (!webglAvailable()) { activateFallback("about-hero"); return }
 
-  // ---------- CDN asset URLs (same repo as drone-atf) ----------
   const SKY_URL   = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/green-512.hdr"
   const MODEL_URL = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/apollo-draco.glb"
   const FLOOR_URL = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/land-v2.webp"
 
-  // ---------- Scene ----------
   const scene = new Scene()
   scene.background = new Color("#000000")
 
-  // Fixed camera for cube/blur (never moves)
   const BASE_FOV = 45
   const DESIGN_ASPECT = 16 / 9
   function getCoverFov(aspect) {
@@ -38,11 +34,9 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   fixedCamera.position.set(3.0, -94.7, -12.0)
   fixedCamera.lookAt(-2.0, -100.1, 6.1)
 
-  // Orbiting camera for drone
   const camera = new PerspectiveCamera(getCoverFov(innerWidth / innerHeight), innerWidth / innerHeight, 1, 5000)
   camera.position.set(-26.9, -87.9, 2.6)
 
-  // ---------- Renderer ----------
   let renderer
   try {
     renderer = new WebGLRenderer({ antialias: true })
@@ -51,8 +45,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     renderer.outputColorSpace = SRGBColorSpace
     renderer.toneMapping = ACESFilmicToneMapping
     renderer.toneMappingExposure = 3.2
-    // Canvas is position:absolute so #about-hero (overflow:hidden) clips it during the GSAP Flip.
-    // Layout and z-index are owned by the Webflow/GSAP Flip container, not the canvas directly.
     renderer.domElement.style.position = "absolute"
     renderer.domElement.style.top = "50%"
     renderer.domElement.style.left = "50%"
@@ -61,7 +53,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     activateFallback("about-hero"); return
   }
 
-  // ---------- Mount to #about-hero (same pattern as drone-atf scene-drone) ----------
   let container = document.getElementById("about-hero")
   if (!container) {
     container = document.createElement("div")
@@ -73,7 +64,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
   const CUBE_SIZE = 200
 
-  // ---------- Post-processing: horizon blur ----------
   const pr = Math.min(devicePixelRatio, 2)
   let rtW = Math.floor(innerWidth * pr)
   let rtH = Math.floor(innerHeight * pr)
@@ -95,14 +85,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       uBlurEdge:      { value: 0.05 },
       uBlurFalloff:   { value: 0.8 },
     },
-    vertexShader: /* glsl */ `
+    vertexShader: `
       varying vec2 vUv;
       void main() {
         vUv = uv;
         gl_Position = vec4(position.xy, 0.0, 1.0);
       }
     `,
-    fragmentShader: /* glsl */ `
+    fragmentShader: `
       uniform sampler2D tScene;
       uniform vec2  uResolution;
       uniform vec3  uCubeCenter;
@@ -166,10 +156,8 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
       void main() {
         float proximity = cubeEdgeProximity(vUv);
-
         float blurT = 1.0 - smoothstep(0.0, uBlurEdge, proximity);
         blurT = pow(blurT, uBlurFalloff);
-
         float radius = blurT * uBlurRadius;
 
         if (radius < 0.5) {
@@ -200,7 +188,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const blurScene = new Scene()
   blurScene.add(blurQuad)
 
-  // ---------- Post-processing: color correction ----------
   const blurTarget = new WebGLRenderTarget(rtW, rtH, { minFilter: LinearFilter, magFilter: LinearFilter })
 
   const ccMat = new ShaderMaterial({
@@ -215,14 +202,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       uShadows:     { value: -0.30 },
       uHDR:         { value: 0.63 },
     },
-    vertexShader: /* glsl */ `
+    vertexShader: `
       varying vec2 vUv;
       void main() {
         vUv = uv;
         gl_Position = vec4(position.xy, 0.0, 1.0);
       }
     `,
-    fragmentShader: /* glsl */ `
+    fragmentShader: `
       uniform sampler2D tInput;
       uniform float uExposure;
       uniform float uContrast;
@@ -253,24 +240,18 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
         }
 
         col *= pow(2.0, uExposure);
-
         float c = uContrast + 1.0;
         col = (col - 0.18) * c + 0.18;
-
         float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
         col = mix(vec3(lum), col, 1.0 + uSaturation);
-
         col.r += uTemperature * 0.1;
         col.b -= uTemperature * 0.1;
-
         col.g += uTint * 0.1;
-
         float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
         float highlightMask = smoothstep(0.5, 1.0, l);
         float shadowMask = 1.0 - smoothstep(0.0, 0.5, l);
         col += col * highlightMask * uHighlights;
         col += col * shadowMask * uShadows;
-
         col = clamp(col, 0.0, 1.0);
         gl_FragColor = vec4(col, 1.0);
       }
@@ -282,14 +263,11 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const ccScene = new Scene()
   ccScene.add(ccQuad)
 
-  // ---------- Image / horizon orbit angles (driven by scroll blend) ----------
   let imageOrbitAngle = 0
   let horizonOrbitAngle = 0
 
-  // Point drone camera at drone position
   camera.lookAt(-12.5, -93.5, 10.5)
 
-  // ---------- Cube (world/horizon box) ----------
   const cubeGeo = new BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE, 64, 64, 64)
   const cubeMat = new ShaderMaterial({
     uniforms: {
@@ -316,7 +294,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       uCurvature: { value: 3.5 },
       uOrbitAngle: { value: 0.0 },
     },
-    vertexShader: /* glsl */ `
+    vertexShader: `
       uniform float uCurvature;
       varying vec3 vLocalPos;
       varying vec3 vOrigLocalPos;
@@ -344,7 +322,7 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
         vScreenPos = gl_Position;
       }
     `,
-    fragmentShader: /* glsl */ `
+    fragmentShader: `
       uniform sampler2D tFloor;
       uniform float uHasFloor;
       uniform float uAtmosHeight;
@@ -408,7 +386,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
         }
 
         float yNorm = (vLocalPos.y + halfSize) / ${CUBE_SIZE.toFixed(1)};
-
         vec3 bg;
         if (yNorm <= uBgPos1) {
           bg = mix(uBgColor0, uBgColor1, clamp(yNorm / uBgPos1, 0.0, 1.0));
@@ -420,7 +397,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
         atmosT = pow(atmosT, uAtmosFalloff) * uAtmosIntensity;
         float gradientT = clamp(yNorm / uAtmosHeight, 0.0, 1.0);
         vec3 atmosCol = mix(uAtmosInner, uAtmosOuter, gradientT);
-
         vec3 col = bg + atmosCol * atmosT;
 
         gl_FragColor = vec4(col, 1.0);
@@ -439,14 +415,9 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     .subVectors(new Vector3(-2.0, -100.1, 6.1), new Vector3(3.0, -94.7, -12.0))
     .normalize()
 
-  // ---------- Scroll-driven keyframe system ----------
-  // POS1 = scroll start, POS2 = scroll end
-  // Order: DroneX,Y,Z, DroneRotX,Y,Z, HorizonX,Y,Z, HorizonRotX,Y,Z, ImgOffX,OffY,Scale,Rot, OrbitAngle, HorizonOrbit
   const POS1 = [-12.5, -93.5, 10.5, -1.81, 0.25, 0.00,   0,   0,   0,  0.11, -0.05, -0.28, -0.11, 0.27, 2.08,  0.01,  0,    0   ]
   const POS2 = [-12.5, -93.5, 10.5, -1.73, 0.17, -0.21, -24,  -3, -41,  0.00,  0.02, -0.18, -0.11, 0.27, 2.08, -0.18,  0.00, 0.00]
 
-  // ---------- Scroll progress — driven by GSAP ScrollTrigger ----------
-  // Raw progress is updated by ScrollTrigger; the animate loop smooths it with its own lerp.
   let heroScrollProgress = 0
 
   window.addEventListener("DOMContentLoaded", () => {
@@ -493,7 +464,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     horizonOrbitAngle = lerp(POS1[17], POS2[17])
   }
 
-  // ---------- Floor texture (from CDN) ----------
   function applyFloorFromSrc(src) {
     new TextureLoader().load(src, (t) => {
       t.minFilter = LinearMipmapLinearFilter
@@ -507,7 +477,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   }
   applyFloorFromSrc(FLOOR_URL)
 
-  // ---------- Slide drift (baked defaults from dev panel) ----------
   const slideSpeed     = 0.001
   const slideDirection = -0.55
   let slideElapsed = 0
@@ -521,8 +490,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     slideDriftY  = 0
     animDone     = false
   }
-
-  // ---------- Drone: textures, materials, lighting, env map, model ----------
 
   const generateWorldScaleUVs = (mesh, texelsPerUnit) => {
     const geo = mesh.geometry
@@ -778,7 +745,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const hemi = new HemisphereLight(0x8eafc2, 0x584838, 0.8)
   scene.add(hemi)
 
-  // ---------- Environment map ----------
   const pmrem = new PMREMGenerator(renderer)
   pmrem.compileEquirectangularShader()
 
@@ -790,7 +756,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     texture.dispose()
   })
 
-  // ---------- Drone model ----------
   const MODEL_TUNING = { extraScale: 16.0, rotation: new Euler(-Math.PI / 2, 0, 0) }
   let droneObject = null
 
@@ -869,9 +834,11 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     object.rotation.set(-1.81, 0.25, 0.00)
 
     droneObject = object
+    window.dispatchEvent(new Event('scene_loaded'))
+  }, undefined, (err) => {
+    window.dispatchEvent(new Event('scene_loaded'))
   })
 
-  // ---------- Resize ----------
   window.addEventListener("resize", () => {
     const aspect = innerWidth / innerHeight
     const fov = getCoverFov(aspect)
@@ -886,7 +853,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     blurMat.uniforms.uResolution.value.set(rtW, rtH)
   })
 
-  // ---------- Reusable objects for animate() — pre-allocated to avoid GC pressure ----------
   const _orbitQuat  = new Quaternion()
   const _camFwd     = new Vector3()
   const _camRight   = new Vector3()
@@ -894,7 +860,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const _worldUp    = new Vector3(0, 1, 0)
   const _cubeInvRot = new Matrix4()
 
-  // ---------- Hover bob + stall ----------
   const bobCfg = {
     bobAmp:      0.0144,
     bobPeriod:   5.0,
@@ -906,12 +871,9 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   let lastTime = performance.now()
   let smoothScrollT = 0
 
-  // ---------- Render loop state ----------
   let rafId     = null
   let isVisible = true
 
-  // Pause rendering when the hero is off-screen; reset the slide drift so it
-  // plays from the start the next time the section enters the viewport.
   new IntersectionObserver(([entry]) => {
     isVisible = entry.isIntersecting
     if (!isVisible) {
@@ -923,7 +885,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     }
   }, { threshold: 0.01 }).observe(container)
 
-  // Pause when the tab is hidden
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       cancelAnimationFrame(rafId); rafId = null
@@ -933,7 +894,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     }
   })
 
-  // ---------- Animate ----------
   function animate() {
     rafId = requestAnimationFrame(animate)
 
@@ -942,10 +902,8 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
 
     applyScrollBlend(scrollT)
 
-    // Update orbit uniforms
     cubeMat.uniforms.uOrbitAngle.value = imageOrbitAngle
 
-    // Rotate cube for horizon orbit
     const orbitQuat = _orbitQuat.setFromAxisAngle(viewAxis, -horizonOrbitAngle)
     cubeMesh.quaternion.copy(orbitQuat).multiply(cubeBaseQuat)
 
@@ -954,15 +912,11 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     lastTime  = now
     bobTime  += dt
 
-    // Floor texture slide drift — one-shot: slideDriftX/Y grow each frame until
-    // 20 s then freeze at their final value. applyScrollBlend() resets the base
-    // uniform each frame, so adding the frozen final drift each frame holds the
-    // texture at its last position. resetSlideDrift() zeroes everything on exit.
     if (slideSpeed > 0) {
       if (!animDone) {
         slideElapsed += dt
         if (slideElapsed >= 20) {
-          animDone = true          // stop growing — slideDriftX/Y hold their value
+          animDone = true
         } else {
           slideDriftX += Math.cos(slideDirection) * slideSpeed * 0.01
           slideDriftY += Math.sin(slideDirection) * slideSpeed * 0.01
@@ -972,7 +926,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       cubeMat.uniforms.uFloorOffsetY.value += slideDriftY
     }
 
-    // Drone hover bob
     if (droneObject) {
       const s = bobCfg
       const bobFreq   = (2 * Math.PI) / s.bobPeriod
@@ -1003,7 +956,6 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       )
     }
 
-    // Update blur uniforms
     blurMat.uniforms.uCubeCenter.value.copy(cubeMesh.position)
     blurMat.uniforms.uCameraPos.value.copy(fixedCamera.position)
     blurMat.uniforms.uInvViewMatrix.value.copy(fixedCamera.matrixWorld)
@@ -1011,17 +963,13 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     const cubeInvRot = _cubeInvRot.makeRotationFromQuaternion(cubeMesh.quaternion).invert()
     blurMat.uniforms.uCubeRotation.value.copy(cubeInvRot)
 
-    // 1) Render cube to texture (fixed camera)
     if (droneObject) droneObject.visible = false
     renderer.setRenderTarget(renderTarget)
     renderer.render(scene, fixedCamera)
-    // 2) Apply horizon blur
     renderer.setRenderTarget(blurTarget)
     renderer.render(blurScene, blurQuadCam)
-    // 3) Color correction to screen
     renderer.setRenderTarget(null)
     renderer.render(ccScene, blurQuadCam)
-    // 4) Render drone on top (no blur)
     if (droneObject) {
       droneObject.visible = true
       cubeMesh.visible = false
