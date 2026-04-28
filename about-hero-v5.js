@@ -21,6 +21,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const MODEL_URL = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/apollo-draco.glb"
   const FLOOR_URL = "https://cdn.jsdelivr.net/gh/webflow-zypsy/icarus@main/land-v2.webp"
 
+  let assetsLoaded = 0
+  function checkReady() {
+    assetsLoaded++
+    if (assetsLoaded === 2) {
+      window.dispatchEvent(new Event('scene_loaded'))
+    }
+  }
+
   const scene = new Scene()
   scene.background = new Color("#000000")
 
@@ -473,6 +481,9 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
       t.anisotropy = renderer.capabilities.getMaxAnisotropy()
       cubeMat.uniforms.tFloor.value = t
       cubeMat.uniforms.uHasFloor.value = 1.0
+      checkReady()
+    }, undefined, (err) => {
+      checkReady()
     })
   }
   applyFloorFromSrc(FLOOR_URL)
@@ -834,9 +845,9 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
     object.rotation.set(-1.81, 0.25, 0.00)
 
     droneObject = object
-    window.dispatchEvent(new Event('scene_loaded'))
+    checkReady()
   }, undefined, (err) => {
-    window.dispatchEvent(new Event('scene_loaded'))
+    checkReady()
   })
 
   window.addEventListener("resize", () => {
