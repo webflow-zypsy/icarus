@@ -201,14 +201,14 @@ import { webglAvailable, activateFallback } from "./webgl-fallback.js"
   const ccMat = new ShaderMaterial({
     uniforms: {
       tInput:       { value: blurTarget.texture },
-      uExposure:    { value: -0.27 },
+      uExposure:    { value: -0.07 },
       uContrast:    { value: -0.23 },
       uSaturation:  { value: -0.11 },
-      uTemperature: { value: 0.33 },
+      uTemperature: { value: 0.0 },
       uTint:        { value: 0.0 },
       uHighlights:  { value: 0.10 },
-      uShadows:     { value: -0.30 },
-      uHDR:         { value: 0.63 },
+      uShadows:     { value: 0.39 },
+      uHDR:         { value: 0.66 },
     },
     vertexShader: `
       varying vec2 vUv;
