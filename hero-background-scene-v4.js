@@ -57,7 +57,7 @@ window.addEventListener("load", () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.toneMapping = THREE.NoToneMapping
     renderer.setClearColor(0xffffff, 1)
-    renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;"
+    renderer.domElement.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;z-index:2;"
     mountEl.appendChild(renderer.domElement)
 
     const DOME_H_FOV = 183.0 * Math.PI / 180.0
